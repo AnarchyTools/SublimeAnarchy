@@ -1,0 +1,2 @@
+class PackageError(Exception):
+	pass
