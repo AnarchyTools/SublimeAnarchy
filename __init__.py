@@ -1,6 +1,6 @@
 import sublime_plugin
 import sublime
-import circaetinae.package.sk2p.api as api
+import SublimeAnarchy.package.sk2p.api as api
 from .package import stTextProcessing
 # ST3 loads the plugin twice for some ridiculous reason
 if not api.configured(): api.configure()
