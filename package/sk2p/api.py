@@ -130,7 +130,7 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
             revisedText = sourceText[:annotation["key.offset"]]
             if offset > len(revisedText): revisedOffset = len(revisedText)
             return documentationForCursorPosition(revisedText, revisedOffset, extraArgs, noPlatformArgs)
-        raise Exception("Can't find usr for non-identifier type %s" % annotation["key.kind"])
+        return None
             
     #okay, we have a usr.  Maybe we already have the entity for this usr?
     if "key.entities" in sourceTextInfo:
@@ -144,9 +144,11 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
                 allKids += [item]
             return allKids
         entities = rdp(sourceTextInfo["key.entities"])
-        entity = filter(lambda x: x["key.usr"] == annotation["key.usr"], entities)
+        entity = filter(lambda x: "key.usr" in x and x["key.usr"] == annotation["key.usr"], entities)
         for entity in entity:
-            return entity["key.doc.full_as_xml"]
+            if "key.doc.full_as_xml" in entity:
+                return entity["key.doc.full_as_xml"]
+            return None
 
     # Nope.  Check cursorInfo for clues
     info = cursorInfo(sourceText, annotation["key.usr"], extraArgs, noPlatformArgs)

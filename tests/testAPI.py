@@ -94,5 +94,18 @@ try NSFileManager.defaultManager().attributesOfFileSystem(forPath: "2")"""
       result = api.documentationForCursorPosition(example, len(example) - 17) #attributesOfFileSystem
       self.assertTrue(result)
 
+    def test_documentation_extension(self):
+      example = """
+class MyAmazingClass { }
+extension MyAmazingClass {
+    /** My great documentation */
+    func bar() {
+
+    }
+}
+let a: MyAmazingClass"""
+      result = api.documentationForCursorPosition(example, len(example))
+
+
 if __name__ == '__main__':
     unittest.main()
