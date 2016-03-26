@@ -1,0 +1,242 @@
+%YAML 1.2
+---
+name: Swift3
+file_extensions: [swift]
+scope: source.swift
+
+variables:
+  identifier: '[A-Za-z_][A-Za-z_0-9]*'
+  ident_path: '[A-Za-z_][A-Za-z_0-9\.]*'
+
+contexts:
+  # TODO: function call parameter coloring
+  # TODO: Try to capture constants and variables on definition and carry through scope (may be impossible)
+  main:
+    # import
+    - match: '\b(import)\s+({{identifier}}(\.{{identifier}})*)\b'
+      captures:
+        1: support.function
+        2: support.class
+
+    # keywords
+    - match: \b(break|catch|continue|default|do|else|for|guard|if|in|self|static|switch|try|repeat|return|where|while|typealias|protocol|extension)\b
+      scope: keyword
+    - match: \b(public|internal|mutating|nonmutating|weak|lazy|convenience|override|required|final)\b
+      scope: storage.type
+    - match: \b(private(\(set\)|\(get\))*)
+      scope: storage.type
+    - match: \b(associatedtype|defer)\b
+      scope: keyword
+    - match: \b(precondition|fatalError|get|set)\b
+      scope: support.function
+
+    # variable/constant definition
+    - match: '\b(var)\s+({{identifier}})\s*(:)\s*'
+      captures:
+        1: keyword
+        2: variable
+        3: punctuation
+      push: typeDefinition
+    - match: '\b(let)\s+({{identifier}})\s*(:)\s*'
+      captures:
+        1: keyword
+        2: constant.other
+        3: punctuation
+      push: typeDefinition
+    - match: '\b(var)\s+({{identifier}})'
+      captures:
+        1: keyword
+        2: variable
+    - match: '\b(let)\s+({{identifier}})'
+      captures:
+        1: keyword
+        2: constant.other
+
+    # class definition
+    - match: '\b(extension)\s*({{identifier}})\s*(:)\s*({{identifier}})'
+      captures:
+        1: keyword
+        2: entity.name.class
+
+    - match: '\b(class|extension|protocol|struct|typealias|enum)\s*({{identifier}})\s*(:)\s*'
+      captures:
+        1: keyword
+        2: entity.name.class
+        3: punctuation
+      push: typeDefinition
+
+    - match: '\b(class|extension|protocol|struct|typealias|enum)\s*({{identifier}})'
+      captures:
+        1: keyword
+        2: entity.name.class
+
+    # function definition
+    - match: \b(func)\s+([^\s\(]*)
+      captures:
+        1: keyword
+        2: entity.name.function
+      push: funcDefinition
+    - match: \b(subscript)
+      scope: support.function
+      push: funcDefinition
+    - match: \s(init)(\?)
+      captures:
+        1: support.function
+        2: keyword.operator
+      push: funcDefinition
+    - match: \s(init)
+      scope: support.function
+      push: funcDefinition
+
+    # enum
+    - match: '\b(case)\s+(\.*{{ident_path}}*)'
+      captures:
+        1: keyword
+        2: constant.other
+    - match: '(\s|\||&|=)(\.{{ident_path}}*)(\()'
+      captures:
+        1: punctuation
+        2: constant.other
+        3: punctuation
+      push: parameter
+    - match: '(\s|\||&|=)(\.{{ident_path}}*)\b'
+      scope: constant.other
+
+
+    # comments
+    - match: (//+)
+      push: lineComment
+    - match: (/\*+)
+      push: comment
+
+    # strings
+    - match: '"'
+      push: string
+
+    # pseudo preprocessor
+    - match: ^\s*(#)(if|else|endif)(.*)$
+      scope: support.constant
+
+    - include: constants
+    - include: operators
+
+
+  # operators
+  operators:
+    - match: '[-+=<>^$#@!~*\\|&?\/.]*'
+      scope: keyword.operator
+
+  constants:
+    - match: \b(true|false|nil)\b
+      scope: constant.language
+
+  funcDefinition:
+    - match: (\()
+      scope: punctuation
+      push: functionParameterDefinition
+    - match: (\<)
+      push: typeParameters
+    - match: (:)
+      scope: punctuation
+      push: typeDefinition
+    - match: \b(throws)\b
+      scope: keyword
+    - match: \s(->)\s*
+      scope: keyword
+      push: typeDefinition 
+    - match: (\{)
+      pop: true
+
+  functionParameterDefinition:
+    - match: (\))
+      scope: punctuation
+      pop: true
+    # with parameter name
+    - match: '\b({{identifier}})(\s+{{identifier}})(:)\s*'
+      captures:
+        1: variable.parameter
+        2: variable.parameter
+        3: punctuation
+      push: typeDefinition
+    # without parameter name
+    - match: '\b({{identifier}})(:)\s*'
+      captures:
+        1: variable.parameter
+        3: punctuation
+      push: typeDefinition
+    - include: constants
+    - include: operators
+
+  typeDefinition:
+    - include: sharedTypeDefinition
+    - match: ''
+      pop: true
+
+  sharedTypeDefinition:
+    - match: (\[)
+      scope: punctuation
+      push: arrayOrDict
+    - match: (\()
+      scope: punctuation
+      push: tuple
+    # - match: '\b({{ident_path}})(\<)''
+    #   captures:
+    #     1: support.class
+    #     2: punctuation
+    #   push: typeParameters
+    - match: '\b({{ident_path}})'
+      scope: support.class
+
+  arrayOrDict:
+    - match: (\])
+      scope: punctuation
+      pop: true
+    - include: sharedTypeDefinition
+
+  tuple:
+    - match: (\))
+      scope: punctuation
+      pop: true
+    - include: sharedTypeDefinition
+
+  typeParameters:
+    - meta_content_scope: storage
+    - match: (>)
+      scope: punctuation
+      pop: true
+    # TODO: parse the syntax of type params
+
+  parameter:
+    - match: (\))
+      pop: true
+
+  comment:
+    - meta_scope: comment
+    - match: (\*/)
+      scope: comment
+      pop: true
+    - match: \b(TODO|FIXME|HACK|BUG)\b
+      scope: comment.todo
+
+  lineComment:
+    - meta_scope: comment.line
+    - match: \n
+      pop: true
+    - match: \b(TODO|FIXME|HACK|BUG)\b
+      scope: comment.todo
+
+  string:
+    - meta_scope: string.quoted.double
+    - match: '\\\('
+      scope: punctuation.embedded
+      set: stringInterpolation
+    - match: \\.
+      scope: constant.character.escape.c
+    - match: '"'
+      pop: true
+
+  stringInterpolation:
+    - include: main
+    - match: '\)'
+      scope: punctuation.embedded
+      set: string
