@@ -33,8 +33,8 @@ def configure(path = None):
         # guess!
         # todo: use a more sensible path
         # debugging sourcekit
-        path = "/Users/drew/Code/build/Ninja-DebugAssert/swift-macosx-x86_64/lib/sourcekitd.framework/sourcekitd"
-        #path = "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd"
+        #path = "/Users/drew/Code/build/Ninja-DebugAssert/swift-macosx-x86_64/lib/sourcekitd.framework/sourcekitd"
+        path = "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd"
     from .cbindings import SourceKit
     SourceKit(path)
     assert(configured())
