@@ -31,5 +31,13 @@ class TextProcessingTests(unittest.TestCase):
         for completion in completions["key.results"]:
             st.shortType(completion["key.kind"])
 
+    def test_xmlDoc(self):
+        sampleDoc = "<Function><Name>hasSuffix(_:)</Name><USR>s:FSS9hasSuffixFSSSb</USR><Declaration>func hasSuffix(suffix: String) -&gt; Bool</Declaration><Abstract><Para>Returns <codeVoice>true</codeVoice> iff <codeVoice>self</codeVoice> ends with <codeVoice>suffix</codeVoice>.</Para></Abstract></Function>"
+        self.assertEqual(st.fromXMLDoc(sampleDoc), "<pre>func hasSuffix(suffix: String) -&gt; Bool</pre><p>Returns <pre>true</pre> iff <pre>self</pre> ends with <pre>suffix</pre>.</p>")
+
+    def test_xmlDoc_quotes(self):
+        sampleDoc = """<Other><Name>endIndex</Name><USR>s:vSS8endIndexVVSS13CharacterView5Index</USR><Declaration>var endIndex: Index { get }</Declaration><Abstract><Para>The &quot;past the end&quot; position in <codeVoice>self.characters</codeVoice>.</Para></Abstract><Discussion><Para><codeVoice>endIndex</codeVoice> is not a valid argument to <codeVoice>subscript</codeVoice>, and is always reachable from <codeVoice>startIndex</codeVoice> by zero or more applications of <codeVoice>successor()</codeVoice>.</Para></Discussion></Other>"""
+        output = st.fromXMLDoc(sampleDoc)
+        self.assertEqual(output,'<pre>var endIndex: Index { get }</pre><p>The "past the end" position in <pre>self.characters</pre>.</p>')
 if __name__ == '__main__':
     unittest.main()

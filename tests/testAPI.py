@@ -32,6 +32,67 @@ f"""
 import Foundation
 """
       result = api.complete(example,len(example))
-      
+
+    def test_docinfo(self):
+      example = """let a = "test"
+a.hasSuffix("b")"""
+      result = api.docInfo(example)
+
+    def test_completion_documentation(self):
+      example = """let a = "test"
+a."""
+      result = api.complete(example, len(example))
+      # the key we're looking for is likely key.doc.brief
+
+
+    def test_documentationForCursorPosition(self):
+      example = """let a = "test"
+      a.hasSuffix("b")"""
+      result = api.documentationForCursorPosition(example, len(example) - 6)
+
+    def test_documentationForCursorPosition_autocomplete(self):
+      example = """let a = "test"
+a.hasSuffix(suffix: String)"""
+      result = api.documentationForCursorPosition(example, len(example) - 15) #this is the position immediately after the left paren
+      self.assertTrue(result)
+
+    def test_documentationForCursorPosition_autocomplete_2(self):
+      example = """let a = "test"
+a.hasSuffix(suffix: String)"""
+      result = api.documentationForCursorPosition(example, len(example) - 19) #this is the position in the middle of hasSuffix
+      self.assertIn("hasSuffix", result)
+
+    def test_documentationCustom(self):
+      example = """class MySpecialClass {
+    ///HOW IS THIS EVEN A THING
+    func foo() {
+
+    }
+}
+
+MySpecialClass().foo()"""
+      result = api.documentationForCursorPosition(example, len(example) - 2)
+      self.assertIn("HOW IS THIS EVEN", result)
+
+    def test_documentationCustom_2(self):
+      example = """///MY AMAZING CLASS
+class MySpecialClass {
+    ///HOW IS THIS EVEN A THING
+    func foo() {
+
+    }
+}
+
+let a: MySpecialClass"""
+      result = api.documentationForCursorPosition(example, len(example) - 1) #this is the position in the middle of MySpecialClass
+      self.assertIn("MY AMAZING CLASS", result)
+
+    @unittest.skip("ObjC documentation isn't supported")
+    def test_documentation_Foundation(self):
+      example = """import Foundation
+try NSFileManager.defaultManager().attributesOfFileSystem(forPath: "2")"""
+      result = api.documentationForCursorPosition(example, len(example) - 17) #attributesOfFileSystem
+      self.assertTrue(result)
+
 if __name__ == '__main__':
     unittest.main()

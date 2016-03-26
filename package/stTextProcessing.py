@@ -134,3 +134,14 @@ def shortType(tipe):
             "source.lang.swift.pattern":"pattern"
     }
     return tipes[tipe] 
+
+declarationAbstract = re.compile(".*<Declaration>(?P<declaration>.*)</Declaration>.*<Abstract>(?P<abstract>.*)</Abstract>.*")
+def fromXMLDoc(xmlDoc):
+    parseDA = declarationAbstract.match(xmlDoc)
+    # fix abstract
+    abstract = parseDA.group("abstract")
+    substitutions = {"<Para>":"<p>","</Para>":"</p>","<codeVoice>":"<pre>","</codeVoice>":"</pre>",
+                    "&amp;":"&","&lt;":"<","&gt;":">","&quot;":'"',"&apos;":"'"}
+    for old,new in substitutions.items():
+        abstract = abstract.replace(old,new)
+    return "<pre>"+parseDA.group("declaration")+"</pre>" + abstract
