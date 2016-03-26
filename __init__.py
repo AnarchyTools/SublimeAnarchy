@@ -8,9 +8,13 @@ if not api.configured(): api.configure()
 
 class Autocomplete(sublime_plugin.EventListener):
 
+    def enable(self, view):
+        if not view: return False
+        if not view.file_name().endswith("swift"): return False
+        return True
+
     def on_query_completions(self, view, prefix, locations):
-        if not view: return
-        if not view.file_name().endswith("swift"): return []
+        if not self.enable(view): return []
         text = view.substr(sublime.Region(0, view.size()))
 
         completions = api.complete(text, locations[0])
