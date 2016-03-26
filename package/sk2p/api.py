@@ -69,15 +69,6 @@ def __findAnnotationForSourceText(sourceText, offset, annotations, acceptClosest
         return closestMatch
     return None
 
-
-# def documentationForSourceText(sourceText, offset, extraArgs = [], noPlatformArgs = False):
-#     # first, we get the docInfo
-#     docInfo = self.docInfo(sourceText, extraArgs, noPlatformArgs)
-#     # we find an annotation at the requested cursor position
-#     annotation = __findAnnotationForSourceText(docInfo["key.annotations"], offset)
-#     if not annotation: return None
-#     # look up the module
-
 def cursorInfo(sourceText, usr, extraArgs = [], noPlatformArgs = False):
     """An undocumented SK 'cursorInfo' request, which mostly seems to query documentation for a particular USR."""
     extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
