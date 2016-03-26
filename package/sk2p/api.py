@@ -83,6 +83,8 @@ def cursorInfo(sourceText, usr, extraArgs = [], noPlatformArgs = False):
 def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatformArgs = False, tryKeepingIdentifier = True):
     sourceTextInfo = docInfo(sourceText, extraArgs, noPlatformArgs)
     annotation = __findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.annotations"])
+    revisedOffset = offset
+
     if not annotation: 
         # If there was no annotation at the exact location, can we find an annotation at a close location?
         annotation = __findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.annotations"], acceptClosest = True)
@@ -90,13 +92,12 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
             #okay, let's back up to the last annotation we understand and try the docInfo again
             #this is commonly used to get around e.g. `a.appendString(` (where docInfo does not like that trailing `(`
             revisedText = sourceText[:annotation["key.offset"] + annotation["key.length"]]
-            if offset > len(revisedText): revisedOffset = len(revisedText)
+            revisedOffset = annotation["key.offset"] # rely on the offset of the annotation here, rather than trying to fix it
             return documentationForCursorPosition(revisedText, revisedOffset, extraArgs, noPlatformArgs)
     if not "key.usr" in annotation: 
         # if what we found is an "identifier", then this may be a case of Swift latching onto the arguments..
         # they might be invalid, for example, in the case where we have just accepted an autocompletion.
         if annotation["key.kind"] == "source.lang.swift.syntaxtype.identifier":
-            revisedOffset = offset
 
             if tryKeepingIdentifier: # don't stack overflow by continuing to try a failing strategy
                 #first, let's try to remove just the stuff coming after the current identifier.

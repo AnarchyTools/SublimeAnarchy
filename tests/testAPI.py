@@ -106,6 +106,15 @@ extension MyAmazingClass {
 let a: MyAmazingClass"""
       result = api.documentationForCursorPosition(example, len(example))
 
+    def test_blank_line(self):
+      # crasher
+      example = """let a = "test"
+a.hasSuffix("foo")
+
+class MyGreatClass {
+    
+}"""
+      result = api.documentationForCursorPosition(example, len(example) - 28)
 
 if __name__ == '__main__':
     unittest.main()
