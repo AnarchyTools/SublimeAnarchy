@@ -1,0 +1,64 @@
+%YAML 1.2
+---
+name: AnarchyPackage
+file_extensions: [atpkg, atlock]
+scope: source.atpkg
+
+contexts:
+  main:
+    - match: (;;)(.*)\n
+      scope: comment
+
+    - match: (\()(\s*package)
+      captures: 
+        1: punctuation
+        2: entity.name.class
+      push: paren
+
+    - match: (\()(\s*lock-file)
+      captures: 
+        1: punctuation
+        2: entity.name.class
+      push: paren
+
+    - match: '"'
+      push: string
+
+    - match: (:)([A-Za-z_-]*)
+      captures: 
+        1: punctuation
+        2: keyword
+
+    - match: (\()
+      push: paren
+
+    - match: (\[)
+      push: bracket
+
+    - match: (\{)
+      push: brace
+
+    - match: \b(true|false)\b
+      scope: support.constant
+
+  paren:
+    - include: main
+    - match: (\))
+      pop: true
+
+  bracket:
+    - include: main
+    - match: (\])
+      pop: true
+
+  brace:
+    - include: main
+    - match: (\})
+      pop: true
+
+  string:
+    - meta_scope: string.quoted.double
+    - match: \\.
+      scope: constant.character.escape
+    - match: '"'
+      pop: true
