@@ -2,6 +2,7 @@ import sublime_plugin
 import sublime
 import SublimeAnarchy.package.sk2p.api as api
 from .package import stTextProcessing
+from .package import atpkgTools
 # ST3 loads the plugin twice for some ridiculous reason
 if not api.configured(): api.configure()
 
@@ -10,14 +11,17 @@ class Autocomplete(sublime_plugin.EventListener):
 
     def enable(self, view):
         if not view: return False
+        if not view.file_name(): return False
         if not view.file_name().endswith("swift"): return False
         return True
 
     def on_query_completions(self, view, prefix, locations):
         if not self.enable(view): return []
         text = view.substr(sublime.Region(0, view.size()))
+        # look up atpkg if available
+        otherSourceFiles = atpkgTools.otherSourceFilesAbs(view.file_name())
 
-        completions = api.complete(text, locations[0])
+        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles)
         sk_completions = []
         for o in completions["key.results"]:
             stPlaceholder = stTextProcessing.fromXcodePlaceholder(o["key.sourcetext"])

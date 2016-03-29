@@ -6,17 +6,17 @@ Responses are provided as JSON dictionaries in SK format.  ST-specific processin
 from . import cbindings
 
 
-def complete(sourceText, offset, extraArgs = [], noPlatformArgs = False):
+def complete(sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False):
     extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
     cbindings.SourceKit.check_loaded()
-
-    return cbindings.Request({
+    request = {
         'key.request': cbindings.UIdent('source.request.codecomplete'),
         'key.sourcetext': sourceText,
         'key.offset': offset,
-        'key.compilerargs': ['<input>'] + extraArgs
-    }).send().toPython()
-
+        'key.compilerargs': ['<input>'] + extraArgs + otherSourceFiles
+    }
+    # print("offering request", request)
+    return cbindings.Request(request).send().toPython()
 def __preparePlatformArgs(extraArgs, noPlatformArgs):
     if not noPlatformArgs:
         extraArgs.append("-sdk")
@@ -39,15 +39,17 @@ def configure(path = None):
     SourceKit(path)
     assert(configured())
 
-def docInfo(sourceText, extraArgs = [], noPlatformArgs = False):
+def docInfo(sourceText, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
     """This somewhat poorly named API returns the *document* info."""
     extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
-    return cbindings.Request({
+    request = {
           "key.request": cbindings.UIdent("source.request.docinfo"),
           "key.sourcetext": sourceText,
-          "key.compilerargs": ['<input>'] + extraArgs,
+          "key.compilerargs": ['<input>'] + extraArgs + otherSourceFiles,
           "key.sourcefile" : "<input>"
-    }).send().toPython()
+    }
+    # print("sending request", request)
+    return cbindings.Request(request).send().toPython()
 
 def __findAnnotationForSourceText(sourceText, offset, annotations, acceptClosest = False):
     closestDistance = 999999999
@@ -69,19 +71,19 @@ def __findAnnotationForSourceText(sourceText, offset, annotations, acceptClosest
         return closestMatch
     return None
 
-def cursorInfo(sourceText, usr, extraArgs = [], noPlatformArgs = False):
+def cursorInfo(sourceText, usr, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
     """An undocumented SK 'cursorInfo' request, which mostly seems to query documentation for a particular USR."""
     extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
     return cbindings.Request({
       "key.request": cbindings.UIdent("source.request.cursorinfo"),
       "key.sourcetext": sourceText,
-      "key.compilerargs": ['<input>'] + extraArgs,
+      "key.compilerargs": ['<input>'] + otherSourceFiles + extraArgs,
       "key.sourcefile" : "<input>",
       "key.usr":usr
     }).send().toPython()
 
-def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatformArgs = False, tryKeepingIdentifier = True):
-    sourceTextInfo = docInfo(sourceText, extraArgs, noPlatformArgs)
+def documentationForCursorPosition(sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False, tryKeepingIdentifier = True):
+    sourceTextInfo = docInfo(sourceText, extraArgs, otherSourceFiles, noPlatformArgs)
     annotation = __findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.annotations"])
     revisedOffset = offset
 
@@ -93,7 +95,7 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
             #this is commonly used to get around e.g. `a.appendString(` (where docInfo does not like that trailing `(`
             revisedText = sourceText[:annotation["key.offset"] + annotation["key.length"]]
             revisedOffset = annotation["key.offset"] # rely on the offset of the annotation here, rather than trying to fix it
-            return documentationForCursorPosition(revisedText, revisedOffset, extraArgs, noPlatformArgs)
+            return documentationForCursorPosition(revisedText, revisedOffset, otherSourceFiles, extraArgs, noPlatformArgs)
     if not "key.usr" in annotation: 
         # if what we found is an "identifier", then this may be a case of Swift latching onto the arguments..
         # they might be invalid, for example, in the case where we have just accepted an autocompletion.
@@ -109,7 +111,7 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
             
                 revisedText = sourceText[:annotation["key.offset"] + annotation["key.length"]]
                 if offset > len(revisedText): revisedOffset = len(revisedText)
-                attempt = documentationForCursorPosition(revisedText, revisedOffset, extraArgs, noPlatformArgs, tryKeepingIdentifier = False)
+                attempt = documentationForCursorPosition(revisedText, revisedOffset, otherSourceFiles, extraArgs, noPlatformArgs, tryKeepingIdentifier = False)
                 if attempt: return attempt
 
             #Right, so that didn't work.  What if we got stuck in the argument itself?  e.g.
@@ -121,7 +123,7 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
 
             revisedText = sourceText[:annotation["key.offset"]]
             if offset > len(revisedText): revisedOffset = len(revisedText)
-            return documentationForCursorPosition(revisedText, revisedOffset, extraArgs, noPlatformArgs)
+            return documentationForCursorPosition(revisedText, revisedOffset, otherSourceFiles, extraArgs, noPlatformArgs)
         return None
             
     #okay, we have a usr.  Maybe we already have the entity for this usr?
@@ -143,7 +145,7 @@ def documentationForCursorPosition(sourceText, offset, extraArgs = [], noPlatfor
             return None
 
     # Nope.  Check cursorInfo for clues
-    info = cursorInfo(sourceText, annotation["key.usr"], extraArgs, noPlatformArgs)
+    info = cursorInfo(sourceText, annotation["key.usr"], extraArgs, otherSourceFiles, noPlatformArgs)
     if "key.doc.full_as_xml" in info:
         return info["key.doc.full_as_xml"]
 

@@ -1,0 +1,2 @@
+/// ThisDocumentationIsDefinedInBSwift
+class ThisSymbolIsDefinedInBSwift { }

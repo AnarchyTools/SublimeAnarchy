@@ -1,6 +1,6 @@
 import sys
 import re
-import ply.yacc as yacc
+from ..ply import yacc as yacc
 from .lexer import ClojureLex
 
 class ParserException(Exception):

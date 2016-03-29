@@ -1,0 +1,12 @@
+(package
+ :name "dontcare"
+    :tasks {
+        :default {
+            :tool "atllbuild"
+            :output-type "executable"
+            :name "dynamic_library_tester"
+            :sources ["src/**.swift" "extra/foo.swift"]
+            :link-with ["dynamicBar.dynamic" "dynamicFoo.dynamic"]
+        }
+     }
+)

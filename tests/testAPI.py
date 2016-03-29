@@ -1,11 +1,12 @@
 import unittest
 import package.sk2p.api as api
+import os.path
 
 #ST3 reloads the API twice for some reason.
 if not api.configured(): api.configure()
 
 
-class APITests(unittest.TestCase):
+class TestComplete(unittest.TestCase):
 
     def test_complete(self):
 
@@ -33,17 +34,23 @@ import Foundation
 """
       result = api.complete(example,len(example))
 
-    def test_docinfo(self):
-      example = """let a = "test"
-a.hasSuffix("b")"""
-      result = api.docInfo(example)
-
     def test_completion_documentation(self):
       example = """let a = "test"
 a."""
       result = api.complete(example, len(example))
       # the key we're looking for is likely key.doc.brief
 
+    def test_multifile_complete(self):
+      example = ""
+      loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+      aSwiftPath = os.path.join(loc, "fixtures/sampleatpkg/src/a.swift")
+      bSwiftPath = os.path.join(loc, "fixtures/sampleatpkg/src/b.swift")
+
+      result = api.complete(example, 0, otherSourceFiles = [aSwiftPath, bSwiftPath])
+      self.assertEqual(len(list(filter(lambda x: x["key.name"] == "ThisSymbolIsDefinedInASwift", result["key.results"]))), 1)
+      self.assertEqual(len(list(filter(lambda x: x["key.name"] == "ThisSymbolIsDefinedInBSwift", result["key.results"]))), 1)
+
+class TestDocumentation(unittest.TestCase):
 
     def test_documentationForCursorPosition(self):
       example = """let a = "test"
@@ -115,6 +122,19 @@ class MyGreatClass {
     
 }"""
       result = api.documentationForCursorPosition(example, len(example) - 28)
+
+    @unittest.skip("SR-1096")
+    def test_multifile_documentation(self):
+      example = "let a: ThisSymbolIsDefinedInASwift"
+      loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+      aSwiftPath = os.path.join(loc, "fixtures/sampleatpkg/src/a.swift")
+      bSwiftPath = os.path.join(loc, "fixtures/sampleatpkg/src/b.swift")
+
+      result = api.documentationForCursorPosition(example, len(example) - 1, otherSourceFiles = [aSwiftPath, bSwiftPath])
+      import pdb
+      pdb.set_trace()
+
+    
 
 if __name__ == '__main__':
     unittest.main()

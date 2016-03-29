@@ -1,0 +1,3 @@
+// a
+///ThisDocumentationIsDefinedInASwift
+class ThisSymbolIsDefinedInASwift { }

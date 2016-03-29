@@ -4,24 +4,24 @@ from .overlay import Overlay
 class Task(object):
 
 	@staticmethod
-	def factory(data):
+	def factory(data, where):
 		if not isinstance(data, dict):
 			raise PackageError("Task must be a dictionary")
 		tool = data.get("tool", None)
 		if not tool:
 			raise PackageError("You have to define a tool")
 		if tool == "atllbuild":
-			return LLBuildTask(data)
+			return LLBuildTask(data, where)
 		elif tool == "shell":
-			return ShellTask(data)
+			return ShellTask(data, where)
 		elif tool == "xctestrun":
-			return XCTestTask(data)
+			return XCTestTask(data, where)
 		elif tool == "nop":
-			return NOPTask(data)
+			return NOPTask(data, where)
 		else:
 			raise PackageError("Unknown tool {tool}".format(tool=tool))
 
-	def __init__(self, task):
+	def __init__(self, task, where):
 		if not isinstance(task, dict):
 			raise PackageError("Task must be a dictionary")
 		self.dependencies      = task.get("dependencies", [])
@@ -31,17 +31,18 @@ class Task(object):
 			self.overlays[name] = Overlay(data)
 		self.used_overlays     = task.get("use-overlay", [])
 		self.required_overlays = task.get("required-overlays")
+		self.root_path 		   = where
 		super().__init__()
 
 
 class LLBuildTask(Task):
 
-	def __init__(self, task):
-		super().__init__(task)
+	def __init__(self, task, where):
+		super().__init__(task, where)
 		self.name                      = task.get("name", None)
 
 		self.output_type               = task.get("output-type", None)
-		self.sources                   = task.get("sources", [])
+		self.sources                   = task.get("sources", [])[0]
 		self.publish_product           = True if task.get("publish-product", "false") == "true" else False
 	
 		self.bootstrap_only            = True if task.get("bootstrap-only", "false") == "true" else False
@@ -62,15 +63,36 @@ class LLBuildTask(Task):
 
 		self.umbrella_header           = task.get("umbrella-header", None)
 		self.module_map                = task.get("module-map", None)
-		
+
+
 		if not self.name:
 			raise PackageError("A llbuild task needs a (module-)name")
 
+	def collect_sources(self):
+		# see collectSources in the real atpkg
+		collectedSources = []
+		import os.path
+		import os
+		absRoot = os.path.dirname(self.root_path)
+		for descriptor in self.sources:
+			if descriptor.endswith("**.swift"):
+				stripped = descriptor.replace("**.swift","")
+				searchDirective = os.path.join(absRoot, stripped)
+				for root, dirs, files in os.walk(searchDirective):
+					for name in files:
+						if name.endswith(".swift"): collectedSources.append(os.path.join(root, name))
+
+			else: #just a file descriptor
+				collectedSources.append(os.path.join(absRoot, descriptor))
+
+		# convert back from abspaths
+		collectedSources = list(map(lambda x: os.path.relpath(x, start=absRoot), collectedSources))
+		return collectedSources
 
 class ShellTask(Task):
 
-	def __init__(self, task):
-		super().__init__(task)
+	def __init__(self, task, where):
+		super().__init__(task, where)
 		self.script = task.get("script", None)
 		if not self.script:
 			raise PackageError("Shell task needs a script")
@@ -78,8 +100,8 @@ class ShellTask(Task):
 
 class XCTestTask(Task):
 
-	def __init__(self, task):
-		super().__init__(task)
+	def __init__(self, task, where):
+		super().__init__(task, where)
 		self.test_executable = task.get("test-executable", None)
 		if not self.script:
 			raise PackageError("XCTest task needs an executable")
@@ -87,7 +109,7 @@ class XCTestTask(Task):
 
 class NOPTask(Task):
 
-	def __init__(self, task):
-		super().__init__(task)
+	def __init__(self, task, where):
+		super().__init__(task, where)
 
 
