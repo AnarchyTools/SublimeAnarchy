@@ -4,31 +4,77 @@ name: Swift3
 file_extensions: [swift]
 scope: source.swift
 
+# TODO: parse the syntax of type params
+
 variables:
-  identifier: '[A-Za-z_][A-Za-z_0-9]*'
-  ident_path: '[A-Za-z_][A-Za-z_0-9\.]*'
+  identifier: '[a-z_][A-Za-z_0-9]*'
+  ident_path: '[a-z_][A-Za-z_0-9\.]*'
+  class_name: '[A-Z][A-Za-z_0-9]*'
+  class_path: '[A-Z][A-Za-z_0-9\.]*'
 
 contexts:
-  # TODO: function call parameter coloring
-  # TODO: Try to capture constants and variables on definition and carry through scope (may be impossible)
   main:
     # import
-    - match: '\b(import)\s+({{identifier}}(\.{{identifier}})*)\b'
+    - match: '\b(import)\s+({{ident_path}})\b'
       captures:
         1: support.function
-        2: support.class
+        2: entity.name.class
+
+    - match: '\b(import)\s+({{class_path}})\b'
+      captures:
+        1: support.function
+        2: entity.name.class
+
+    # class definition
+    - match: '\b(extension)\s*({{class_name}})\s*(:)\s*({{class_name}})'
+      captures:
+        1: keyword
+        2: entity.name.class
+        3: punctuation
+        4: support.class
+
+    - match: '\b(class|extension|protocol|struct|enum)\s*({{class_name}})\s*(:)\s*'
+      captures:
+        1: keyword
+        2: entity.name.class
+        3: punctuation
+      push: typeDefinition
+
+    - match: '\b(class|extension|protocol|struct|enum)\s+({{class_name}})'
+      captures:
+        1: keyword
+        2: entity.name.class
 
     # keywords
-    - match: \b(break|catch|continue|default|do|else|for|guard|if|in|self|static|switch|try|repeat|return|where|while|typealias|protocol|extension)\b
+    - match: \b(break|catch|continue|default|defer|do|else|for|guard|if|in|static|switch|throw|try|repeat|return|where|while)\b
       scope: keyword
-    - match: \b(public|internal|mutating|nonmutating|weak|lazy|convenience|override|required|final)\b
+    - match: \b(typealias|associatedtype)\b
+      scope: keyword
+
+    # self
+    - match: \b(self)(\.)
+      captures:
+        1: keyword
+        2: punctuation
+      push: variableChain
+    - match: \b(self)\b
+      scope: keyword
+
+    # storage
+    - match: '([@])({{identifier}})\b'
+      scope: storage.type
+    - match: \b(public|internal|mutating|nonmutating|weak|lazy|convenience|override|required|final|inout)\b
       scope: storage.type
     - match: \b(private(\(set\)|\(get\))*)
       scope: storage.type
-    - match: \b(associatedtype|defer)\b
-      scope: keyword
-    - match: \b(precondition|fatalError|get|set)\b
+
+    # built in functions
+    - match: \b(get|set|numericCast|anyGenerator|withExtendedLifetime|withVaList)
       scope: support.function
+    - match: \b(abs|alignof|alignofValue|assert|assertionFailure|debugPrint|dump|fatalError|getVaList|isUniquelyReferenced|max|min|precondition|preconditionFailure|print|readLine|sizeof|sizeofValue|strideof|strideofValue|swap|transcode|unsafeAddressOf|unsafeBitCast|unsafeDowncast|unsafeUnwrap|withUnsafeMutablePointer|withUnsafeMutablePointers|withUnsafePointer|withUnsafePointers|zip)\s*\(
+      captures:
+        1: support.function
+      push: functionCallParameters
 
     # variable/constant definition
     - match: '\b(var)\s+({{identifier}})\s*(:)\s*'
@@ -52,24 +98,6 @@ contexts:
         1: keyword
         2: constant.other
 
-    # class definition
-    - match: '\b(extension)\s*({{identifier}})\s*(:)\s*({{identifier}})'
-      captures:
-        1: keyword
-        2: entity.name.class
-
-    - match: '\b(class|extension|protocol|struct|typealias|enum)\s*({{identifier}})\s*(:)\s*'
-      captures:
-        1: keyword
-        2: entity.name.class
-        3: punctuation
-      push: typeDefinition
-
-    - match: '\b(class|extension|protocol|struct|typealias|enum)\s*({{identifier}})'
-      captures:
-        1: keyword
-        2: entity.name.class
-
     # function definition
     - match: \b(func)\s+([^\s\(]*)
       captures:
@@ -89,17 +117,17 @@ contexts:
       push: funcDefinition
 
     # enum
-    - match: '\b(case)\s+(\.*{{ident_path}}*)'
+    - match: '\b(case)\s+(\.*{{class_path}}*)'
       captures:
         1: keyword
         2: constant.other
-    - match: '(\s|\||&|=)(\.{{ident_path}}*)(\()'
+    - match: '(\s|\||&|=)(\.{{class_path}}*)(\()'
       captures:
         1: punctuation
         2: constant.other
         3: punctuation
       push: parameter
-    - match: '(\s|\||&|=)(\.{{ident_path}}*)\b'
+    - match: '(\s|\||&|=)(\.{{class_path}}*)\b'
       scope: constant.other
 
 
@@ -109,27 +137,96 @@ contexts:
     - match: (/\*+)
       push: comment
 
-    # strings
-    - match: '"'
-      push: string
+    - include: strings
 
     # pseudo preprocessor
     - match: ^\s*(#)(if|else|endif)(.*)$
       scope: support.constant
 
+    # class function calls
+    - match: '\b(({{class_name}})(\.))({{identifier}})\s*\('
+      captures:
+        2: entity.name.class
+        3: punctuation
+        4: entity.name.function
+      push: functionCallParameters
+
+    - match: '\b(({{class_name}})(\.))({{class_name}})\s'
+      captures:
+        2: entity.name.class
+        3: punctuation
+        4: constant.other
+
+    - match: '\b({{class_name}})(\.)({{identifier}})'
+      captures:
+        1: entity.name.class
+        2: punctuation
+        3: variable
+
+    - match: '\b({{class_name}})(\.)'
+      captures:
+        1: entity.name.class
+        2: punctuation
+
+    - match: '\b({{class_name}})\s*\('
+      captures:
+        1: entity.name.class
+      push: functionCallParameters
+
+    # functions calls
+    - match: '(\.)({{identifier}})\s*\('
+      captures:
+        1: punctuation
+        2: entity.name.function
+      push: functionCallParameters
+
+    # get/set calls
+    - match: '(\.)({{ident_path}})[\b|\s]'
+      captures:
+        1: punctuation
+        2: variable
+
     - include: constants
     - include: operators
+
+    # everything else is probably just a variable
+    - match: '\b({{identifier}})\b'
+      scope: variable
 
 
   # operators
   operators:
-    - match: '[-+=<>^$#@!~*\\|&?\/.]*'
+    - match: '\$[0-9]+'
+      scope: variable.parameter
+    - match: '[-+=<>^$#!~*\\|&?\/]*'
       scope: keyword.operator
 
   constants:
     - match: \b(true|false|nil)\b
       scope: constant.language
 
+  # strings
+  strings:
+    - match: '"'
+      push: string
+
+  string:
+    - meta_scope: string.quoted.double
+    - match: '\\\('
+      scope: punctuation.embedded
+      set: stringInterpolation
+    - match: \\.
+      scope: constant.character.escape.c
+    - match: '"'
+      pop: true
+
+  stringInterpolation:
+    - include: main
+    - match: '\)'
+      scope: punctuation.embedded
+      set: string
+
+  # function definitions
   funcDefinition:
     - match: (\()
       scope: punctuation
@@ -167,11 +264,7 @@ contexts:
     - include: constants
     - include: operators
 
-  typeDefinition:
-    - include: sharedTypeDefinition
-    - match: ''
-      pop: true
-
+  # type definitions
   sharedTypeDefinition:
     - match: (\[)
       scope: punctuation
@@ -184,8 +277,13 @@ contexts:
     #     1: support.class
     #     2: punctuation
     #   push: typeParameters
-    - match: '\b({{ident_path}})'
+    - match: '\b({{class_path}})*'
       scope: support.class
+
+  typeDefinition:
+    - include: sharedTypeDefinition
+    - match: ''
+      pop: true
 
   arrayOrDict:
     - match: (\])
@@ -201,15 +299,65 @@ contexts:
 
   typeParameters:
     - meta_content_scope: storage
+    - match: \b(where)\b
+      scope: keyword
     - match: (>)
       scope: punctuation
       pop: true
-    # TODO: parse the syntax of type params
 
   parameter:
     - match: (\))
       pop: true
 
+  # function calls
+  funcCallParenTracker:
+    - include: main
+    - match: (\()
+      push: funcCallParen
+    - match: (\[)
+      push: funcCallBracket
+    - match: (\{)
+      push: funcCallBrace
+
+  functionCallParameters:
+    - match: '({{identifier}})(:)'
+      captures:
+        1: variable.parameter
+        2: punctuation
+    - include: funcCallParenTracker
+    - match: (\))
+      pop: true
+
+  funcCallParen:
+    - include: funcCallParenTracker
+    - match: (\))
+      pop: true
+
+  funcCallBracket:
+    - include: funcCallParenTracker
+    - match: (\])
+      pop: true
+
+  funcCallBrace:
+    - include: funcCallParenTracker
+    - match: (\})
+      pop: true
+
+  # chain of variables
+  variableChain:
+    - match: '(\.)({{identifier}})\s*\('
+      captures:
+        1: punctuation
+        2: entity.name.function
+      push: functionCallParameters
+    - match: (\.)
+      scope: punctuation
+    - match: '({{identifier}})'
+      scope: variable
+    - match: ''
+      pop: true
+
+  # comments
   comment:
     - meta_scope: comment
     - match: (\*/)
@@ -224,19 +372,3 @@ contexts:
       pop: true
     - match: \b(TODO|FIXME|HACK|BUG)\b
       scope: comment.todo
-
-  string:
-    - meta_scope: string.quoted.double
-    - match: '\\\('
-      scope: punctuation.embedded
-      set: stringInterpolation
-    - match: \\.
-      scope: constant.character.escape.c
-    - match: '"'
-      pop: true
-
-  stringInterpolation:
-    - include: main
-    - match: '\)'
-      scope: punctuation.embedded
-      set: string

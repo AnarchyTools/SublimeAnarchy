@@ -1,0 +1,140 @@
+%YAML 1.2
+---
+name: AnarchyPackage
+file_extensions: [atpkg, atlock]
+scope: source.atpkg
+
+contexts:
+  main:
+    - match: (;;)(.*)\n
+      scope: comment
+
+    - match: (\()(\s*package)
+      captures: 
+        1: punctuation
+        2: entity.name.class
+      push: paren
+
+    - match: (\()(\s*lock-file)
+      captures: 
+        1: punctuation
+        2: entity.name.class
+      push: paren
+
+    - match: '"'
+      push: string
+
+    - include: keywords
+
+    - match: (:)([A-Za-z-]*)
+      captures: 
+        1: punctuation
+        2: constant.other
+
+    - match: (\()
+      push: paren
+
+    - match: (\[)
+      push: bracket
+
+    - match: (\{)
+      push: brace
+
+    - match: \b(true|false)\b
+      scope: support.constant
+
+    - match: (,|;|_|\\|\||/)
+      scope: invalid
+
+  paren:
+    - include: main
+    - match: (\))
+      pop: true
+
+  bracket:
+    - include: main
+    - match: (\])
+      pop: true
+
+  brace:
+    - include: main
+    - match: (\})
+      pop: true
+
+  string:
+    - meta_scope: string.quoted.double
+    - match: \\.
+      scope: constant.character.escape
+    - match: '"'
+      pop: true
+
+  keywords:
+    - match: (:)(default|check)
+      captures:
+        1: punctuation
+        2: support.class
+    - match: (:)(import-packages|external-packages|tasks)\b
+      captures:
+        1: punctuation
+        2: keyword
+    - match: (:)(dependencies|sources|compile-options|overlays|bootstrap-only|llbuildyaml|swiftc-path|link-sdk|link-with|publish-product|xctestify|xctest-strict|modulemap)\b
+      captures:
+        1: punctuation
+        2: keyword
+    - match: (:)(test-executable)\b
+      captures:
+        1: punctuation
+        2: keyword
+    - match: (:)(script)\b
+      captures:
+        1: punctuation
+        2: keyword
+
+    - match: (:)(tool)\s+(")
+      captures:
+        1: punctuation
+        2: keyword
+        3: string.quoted.double
+      push: tools
+
+    - match: (:)(output-type)\s+(")
+      captures:
+        1: punctuation
+        2: keyword
+        3: string.quoted.double
+      push: outputTypes
+
+    - match: (:)(name)\s+(")
+      captures:
+        1: punctuation
+        2: keyword
+        3: string.quoted.double
+      push: names
+
+  tools:
+    - match: \b(nop|atllbuild|shell|xctestrun)\b
+      scope: support.constant
+    - match: '"'
+      scope: string.quoted.double
+      pop: true
+    - match: .
+      scope: invalid
+
+  outputTypes:
+    - match: \b(executable|static-library)\b
+      scope: support.constant
+    - match: '"'
+      scope: string.quoted.double
+      pop: true
+    - match: .
+      scope: invalid
+
+  names:
+    - meta_scope: string.quoted.double
+    - match: \\.
+      scope: invalid
+    - match: '-'
+      scope: invalid
+    - match: '"'
+      scope: string.quoted.double
+      pop: true
