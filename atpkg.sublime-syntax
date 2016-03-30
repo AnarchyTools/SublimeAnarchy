@@ -121,7 +121,7 @@ contexts:
       scope: invalid
 
   outputTypes:
-    - match: \b(executable|static-library)\b
+    - match: \b(executable|static-library|dynamic-library)\b
       scope: support.constant
     - match: '"'
       scope: string.quoted.double
