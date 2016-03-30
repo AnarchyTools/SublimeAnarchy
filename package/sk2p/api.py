@@ -5,10 +5,8 @@ Responses are provided as JSON dictionaries in SK format.  ST-specific processin
 
 from . import cbindings
 
-
-def complete(sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False):
-    extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
-    cbindings.SourceKit.check_loaded()
+def complete(sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False, settings=None):
+    extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs, settings)
     request = {
         'key.request': cbindings.UIdent('source.request.codecomplete'),
         'key.sourcetext': sourceText,
@@ -17,31 +15,19 @@ def complete(sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatfo
     }
     # print("offering request", request)
     return cbindings.Request(request).send().toPython()
-def __preparePlatformArgs(extraArgs, noPlatformArgs):
+
+def __preparePlatformArgs(extraArgs, noPlatformArgs, settings):
     if not noPlatformArgs:
         extraArgs.append("-sdk")
-        extraArgs.append("/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk")
+        extraArgs.append(settings.get("sourcekit_sdk", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk"))
         #todo: port to Linux etc.
     return extraArgs
 
 
-def configured():
-    return cbindings._sk != None
 
-def configure(path = None):
-    if path == None:
-        # guess!
-        # todo: use a more sensible path
-        # debugging sourcekit
-        #path = "/Users/drew/Code/build/Ninja-DebugAssert/swift-macosx-x86_64/lib/sourcekitd.framework/sourcekitd"
-        path = "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd"
-    from .cbindings import SourceKit
-    SourceKit(path)
-    assert(configured())
-
-def docInfo(sourceText, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
+def docInfo(sourceText, settings, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
     """This somewhat poorly named API returns the *document* info."""
-    extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
+    extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs, settings)
     request = {
           "key.request": cbindings.UIdent("source.request.docinfo"),
           "key.sourcetext": sourceText,
@@ -71,9 +57,9 @@ def __findAnnotationForSourceText(sourceText, offset, annotations, acceptClosest
         return closestMatch
     return None
 
-def cursorInfo(sourceText, usr, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
+def cursorInfo(sourceText, usr, settings, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
     """An undocumented SK 'cursorInfo' request, which mostly seems to query documentation for a particular USR."""
-    extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs)
+    extraArgs = __preparePlatformArgs(extraArgs, noPlatformArgs, settings)
     return cbindings.Request({
       "key.request": cbindings.UIdent("source.request.cursorinfo"),
       "key.sourcetext": sourceText,
@@ -82,8 +68,8 @@ def cursorInfo(sourceText, usr, extraArgs = [], otherSourceFiles = [], noPlatfor
       "key.usr":usr
     }).send().toPython()
 
-def documentationForCursorPosition(sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False, tryKeepingIdentifier = True):
-    sourceTextInfo = docInfo(sourceText, extraArgs, otherSourceFiles, noPlatformArgs)
+def documentationForCursorPosition(sourceText, offset, settings, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False, tryKeepingIdentifier = True):
+    sourceTextInfo = docInfo(sourceText, settings, extraArgs, otherSourceFiles, noPlatformArgs)
     annotation = __findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.annotations"])
     revisedOffset = offset
 
@@ -145,7 +131,7 @@ def documentationForCursorPosition(sourceText, offset, otherSourceFiles = [], ex
             return None
 
     # Nope.  Check cursorInfo for clues
-    info = cursorInfo(sourceText, annotation["key.usr"], extraArgs, otherSourceFiles, noPlatformArgs)
+    info = cursorInfo(sourceText, annotation["key.usr"], settings, extraArgs, otherSourceFiles, noPlatformArgs)
     if "key.doc.full_as_xml" in info:
         return info["key.doc.full_as_xml"]
 
@@ -154,4 +140,4 @@ def documentationForCursorPosition(sourceText, offset, otherSourceFiles = [], ex
     # Give up looking for documentation
     return None
 
-__all__ = ["complete", "configure"]
+__all__ = ["complete"]
