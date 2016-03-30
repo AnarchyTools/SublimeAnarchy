@@ -103,7 +103,7 @@ class XCTestTask(Task):
 	def __init__(self, task, where):
 		super().__init__(task, where)
 		self.test_executable = task.get("test-executable", None)
-		if not self.script:
+		if not self.test_executable:
 			raise PackageError("XCTest task needs an executable")
 
 
