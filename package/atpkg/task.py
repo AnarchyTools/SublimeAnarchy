@@ -42,7 +42,7 @@ class LLBuildTask(Task):
 		self.name                      = task.get("name", None)
 
 		self.output_type               = task.get("output-type", None)
-		self.sources                   = task.get("sources", [])[0]
+		self.sources                   = task.get("sources", [])
 		self.publish_product           = True if task.get("publish-product", "false") == "true" else False
 	
 		self.bootstrap_only            = True if task.get("bootstrap-only", "false") == "true" else False
@@ -65,28 +65,27 @@ class LLBuildTask(Task):
 		self.module_map                = task.get("module-map", None)
 
 
+		self.source_files              = self.collect_sources()
+
 		if not self.name:
 			raise PackageError("A llbuild task needs a (module-)name")
 
 	def collect_sources(self):
 		# see collectSources in the real atpkg
 		collectedSources = []
-		import os.path
-		import os
+		import os, fnmatch, glob
 		absRoot = os.path.dirname(self.root_path)
 		for descriptor in self.sources:
 			if descriptor.endswith("**.swift"):
-				stripped = descriptor.replace("**.swift","")
-				searchDirective = os.path.join(absRoot, stripped)
-				for root, dirs, files in os.walk(searchDirective):
-					for name in files:
-						if name.endswith(".swift"): collectedSources.append(os.path.join(root, name))
-
-			else: #just a file descriptor
-				collectedSources.append(os.path.join(absRoot, descriptor))
+				full_descriptor = os.path.join(absRoot, descriptor)
+				for root, dirs, files in os.walk(os.path.dirname(full_descriptor)):
+					collectedSources.extend([os.path.join(root, f) for f in fnmatch.filter(files, "*.swift")])
+			else:
+				full_descriptor = os.path.join(absRoot, descriptor)
+				collectedSources.extend(glob.glob(full_descriptor))
 
 		# convert back from abspaths
-		collectedSources = list(map(lambda x: os.path.relpath(x, start=absRoot), collectedSources))
+		collectedSources = [os.path.relpath(x, start=absRoot) for x in collectedSources]
 		return collectedSources
 
 class ShellTask(Task):
