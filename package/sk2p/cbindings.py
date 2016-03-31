@@ -3,16 +3,9 @@ The cbindings module interfaces with SK and creates SK-"like" objects and bridge
 Generally, the python API exposed tries to stay quite close to the C "object model".
 We expose an object for most of the underlying C objects, and handle the memory management details of those objects.
 """
-import sublime
 
 from ctypes import cdll, c_char_p, c_void_p, POINTER, c_size_t, c_int64, c_int, Structure, c_bool
 import json
-
-def plugin_loaded():
-    global _sk
-    settings = sublime.load_settings('SublimeAnarchy.sublime-settings')
-    sk_path = settings.get("sourcekit_path", "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd")
-    _sk = SourceKit(sk_path)
 
 class SourceKit(object):
     """The SourceKit singleton.  This handles startup/shutdown behavior of the underlying SK engine."""

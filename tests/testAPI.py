@@ -1,10 +1,12 @@
 import unittest
-import package.sk2p.api as api
+from package.sk2p import SK2PAPI
 import os.path
 
-#ST3 reloads the API twice for some reason.
-if not api.configured(): api.configure()
-
+settings = {
+    "sourcekit_path": "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd",
+    "sourcekit_sdk": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk",
+}
+api = SK2PAPI(settings)
 
 class TestComplete(unittest.TestCase):
 

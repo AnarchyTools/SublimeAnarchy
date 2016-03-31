@@ -1,13 +1,14 @@
 import sublime_plugin
 import sublime
-from .package.sk2p import api
-from .package.sk2p.cbindings import SourceKit
+from .package.sk2p import SK2PAPI
 from .package import stTextProcessing
 from .package import atpkgTools
 
 def plugin_loaded():
     global settings
+    global api
     settings = sublime.load_settings('SublimeAnarchy.sublime-settings')
+    api = SK2PAPI(settings)
 
 class Autocomplete(sublime_plugin.EventListener):
 
@@ -23,7 +24,7 @@ class Autocomplete(sublime_plugin.EventListener):
         # look up atpkg if available
         otherSourceFiles = atpkgTools.otherSourceFilesAbs(view.file_name())
 
-        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles, settings=settings)
+        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles)
         sk_completions = []
         for o in completions["key.results"]:
             stPlaceholder = stTextProcessing.fromXcodePlaceholder(o["key.sourcetext"])
@@ -49,7 +50,7 @@ class Autocomplete(sublime_plugin.EventListener):
         text = view.substr(sublime.Region(0, view.size()))
         sel = view.sel()
         region1 = sel[0]
-        docInfo = api.documentationForCursorPosition(text, region1.begin(), settings)
+        docInfo = api.documentationForCursorPosition(text, region1.begin())
         if not docInfo: return
         processedDoc = stTextProcessing.fromXMLDoc(docInfo)
         #wrap in a style
