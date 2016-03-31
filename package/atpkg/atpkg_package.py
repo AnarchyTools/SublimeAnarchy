@@ -1,4 +1,6 @@
-from .task import Task
+import os
+
+from .task import Task, LLBuildTask
 from .dependency import ExternalDependency
 from .error import PackageError
 from .overlay import Overlay
@@ -60,3 +62,11 @@ class Package(object):
 				self.overlays[name] = Overlay(data)
 		else:
 			raise PackageError("Unknown item '{name}'".format(name=key))
+
+	def task_for_file(self, filename):
+		sourcePath = os.path.relpath(filename, start=os.path.dirname(self.root_path))
+		for task in self.tasks.values():
+			if not isinstance(task, LLBuildTask): continue
+			if sourcePath in task.source_files:
+				return task
+		return None

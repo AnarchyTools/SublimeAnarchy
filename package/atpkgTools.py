@@ -1,4 +1,4 @@
-import os.path
+import os
 from .atpkg.atpkg_package import Package
 from .atpkg.task import LLBuildTask
 
@@ -15,13 +15,7 @@ def findAtpkg(forSourceFile):
 def taskForSourceFile(sourcePath):
     """Looks up an LLBuildTask for the given source path"""
     atpkg = findAtpkg(sourcePath)
-    #convert path to relative to the base path
-    sourcePath = os.path.relpath(sourcePath, start=os.path.dirname(atpkg))
-    #load atpkg
-    atpkg = Package.fromFile(atpkg)
-    for task in atpkg.tasks.values():
-        if not isinstance(task, LLBuildTask): continue
-        if sourcePath in task.source_files: return task
+    return Package.fromFile(atpkg).task_for_file(sourcePath)
 
 def otherSourceFilesAbs(sourceFile):
     """Finds the other source files (absolute paths) for the given path, based on looking up the atpkg build file"""

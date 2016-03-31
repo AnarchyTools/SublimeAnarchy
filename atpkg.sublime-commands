@@ -1,6 +1,30 @@
 [
 	{
 		"caption": "AnarchyTools: Build",
-		"command": "atbuild"
+		"command": "atbuild",
+		"args": {
+			"tool": "atllbuild"
+		}
+	},
+	{
+		"caption": "AnarchyTools: Test",
+		"command": "atbuild",
+		"args": {
+			"tool": "xctestrun"
+		}
+	},
+	{
+		"caption": "AnarchyTools: Run Shell Task",
+		"command": "atbuild",
+		"args": {
+			"tool": "shell"
+		}
+	},
+	{
+		"caption": "AnarchyTools: Run",
+		"command": "atbuild",
+		"args": {
+			"tool": "nop"
+		}
 	}
 ]

@@ -14,47 +14,62 @@ def plugin_loaded():
 
 class atbuild(sublime_plugin.WindowCommand):
 
-	def run(self, *args, **kwargs):
-		if not self.window.project_file_name():
-			return
+    def run(self, *args, **kwargs):
+        tool = kwargs.get("tool", "atllbuild")
+        if not self.window.project_file_name():
+            return
 
-		pkg = Package.fromFile(atpkgTools.findAtpkg(self.window.project_file_name()))
+        pkg = Package.fromFile(atpkgTools.findAtpkg(self.window.project_file_name()))   
+        probable_task = pkg.task_for_file(self.window.active_view().file_name())
 
-		tasks = []
-		for (name, task) in pkg.tasks.items():
-			desc = "Task group"
-			if task.tool == "atllbuild":
-				desc = "Compile Swift " + task.output_type.replace("-", " ")
-				if not task.publish_product:
-					continue
-			elif task.tool == "shell":
-				desc = "Run Shell script"
-			elif task.tool == "xctestrun":
-				desc = "Execute Tests"
-			tasks.append([name, desc])
+        tasks = []
+        idx = 0
+        for (name, task) in pkg.tasks.items():
+            if task.tool != tool:
+                continue
+            desc = "Task group"
+            if task.tool == "atllbuild":
+                desc = "Compile Swift " + task.output_type.replace("-", " ")
+            elif task.tool == "shell":
+                desc = "Run Shell script"
+            elif task.tool == "xctestrun":
+                desc = "Execute Tests"
+            if task == probable_task:
+                idx = len(tasks)
+            tasks.append([name, desc])
 
-		self.window.show_quick_panel(tasks, lambda x: self.build(pkg, tasks, x))
+        if len(tasks) == 0:
+            sublime.message_dialog("SublimeAnarchy\n\nThere are no tasks to run")
+            return
 
-	def build(self, pkg, tasks, index):
-		BuildWithATBuild(self.window, pkg, tasks[index][0]).start()
+        if len(tasks) == 1:
+            self.build(pkg, tasks, 0)
+            return
 
-	def is_enabled(self, *args, **kwargs):
-		if self.window.project_file_name():
-			return atpkgTools.findAtpkg(self.window.project_file_name()) != None
-		return False
+        self.window.show_quick_panel(tasks, lambda x: self.build(pkg, tasks, x), 0, idx)
+
+    def build(self, pkg, tasks, index):
+        if index == -1:
+            return
+        BuildWithATBuild(self.window, pkg, tasks[index][0]).start()
+
+    def is_enabled(self, *args, **kwargs):
+        if self.window.project_file_name():
+            return atpkgTools.findAtpkg(self.window.project_file_name()) != None
+        return False
 
 class BuildWithATBuild(threading.Thread):
 
-	def __init__(self, window, pkg, task):
-		self.window = window
-		self.pkg = pkg
-		self.task = task
-		threading.Thread.__init__(self)
+    def __init__(self, window, pkg, task):
+        self.window = window
+        self.pkg = pkg
+        self.task = task
+        threading.Thread.__init__(self)
 
-	def run(self):
-		print("Selected " + self.task)
-		path = os.path.dirname(atpkgTools.findAtpkg(self.window.project_file_name()))
-		atbuild = os.path.expanduser(settings.get('atbuild_path', 'atbuild'))
-		p = Popen([atbuild, self.task], stdout=PIPE, stderr=STDOUT, cwd=path)
-		output, error = p.communicate()
-		print(output.decode('utf-8'))
+    def run(self):
+        print("Selected " + self.task)
+        path = os.path.dirname(atpkgTools.findAtpkg(self.window.project_file_name()))
+        atbuild = os.path.expanduser(settings.get('atbuild_path', 'atbuild'))
+        p = Popen([atbuild, self.task], stdout=PIPE, stderr=STDOUT, cwd=path)
+        output, error = p.communicate()
+        print(output.decode('utf-8'))
