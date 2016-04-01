@@ -1,0 +1,28 @@
+%YAML 1.2
+---
+name: AnarchyTools Build Output
+scope: source.atbuild_output
+hidden: true
+
+contexts:
+  main:
+    - match: 'dyld: Library not loaded:'
+      scope: invalid
+
+    - match: (Compiling Swift Module)\s'([^']+)'
+      captures:
+        1: support.class
+        2: constant.other
+
+    - match: (Linking (Library|executable)[:\s]*)(.*)
+      captures:
+        1: support.class
+        3: constant.other
+
+    - match: ([^:]+):([0-9]+):(([0-9]+):)*\s(error|warning):\s(.*)
+      captures:
+        1: constant.other
+        2: constant.numeric
+        4: constant.numeric
+        5: keyword
+        6: string

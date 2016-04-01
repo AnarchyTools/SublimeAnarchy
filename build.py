@@ -66,10 +66,54 @@ class BuildWithATBuild(threading.Thread):
         self.task = task
         threading.Thread.__init__(self)
 
+    @staticmethod
+    def read_stream(stream, view):
+        for line in stream:
+            view.run_command("append_output_panel", { "data": line.decode('utf-8') })
+        if not stream.closed:
+            stream.close()
+
     def run(self):
-        print("Selected " + self.task)
+        # create or clear output panel
+        view = self.window.find_output_panel("atbuild")
+        if not view:
+            view = self.window.create_output_panel("atbuild")
+        view.run_command("update_output_panel", { "data": "" })
+        self.window.run_command("show_panel", { "panel": "output.atbuild" })
+
+        # start build process
         path = os.path.dirname(atpkgTools.findAtpkg(self.window.project_file_name()))
         atbuild = os.path.expanduser(settings.get('atbuild_path', 'atbuild'))
-        p = Popen([atbuild, self.task], stdout=PIPE, stderr=STDOUT, cwd=path)
-        output, error = p.communicate()
-        print(output.decode('utf-8'))
+        p = Popen([atbuild, self.task], stdout=PIPE, stderr=PIPE, cwd=path)
+
+        # wait to finish and update output panel
+        threading.Thread(target=self.read_stream, name='read_stdout', args=(p.stdout, view)).start()
+        threading.Thread(target=self.read_stream, name='read_stderr', args=(p.stderr, view)).start()
+        p.wait()
+
+
+class updateOutputPanel(sublime_plugin.TextCommand):
+
+    def run(self, edit, **kwargs):
+        data = kwargs.get("data", "")
+        region = sublime.Region(0, self.view.size())
+        self.view.set_read_only(False)
+        self.view.replace(edit, region, data)
+        self.view.set_read_only(True)
+        self.view.sel().clear()
+        self.view.set_syntax_file('Packages/SublimeAnarchy/build_output.sublime-syntax')
+
+    def is_visible(self):
+        return False
+
+class appendOutputPanel(sublime_plugin.TextCommand):
+
+    def run(self, edit, **kwargs):
+        data = kwargs.get("data", "")
+        self.view.set_read_only(False)
+        self.view.insert(edit, self.view.size(), data)
+        self.view.set_read_only(True)
+        self.view.sel().clear()
+
+    def is_visible(self):
+        return False
