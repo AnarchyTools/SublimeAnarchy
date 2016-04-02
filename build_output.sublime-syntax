@@ -19,10 +19,10 @@ contexts:
         1: support.class
         3: constant.other
 
-    - match: ([^:]+):([0-9]+):(([0-9]+):)*\s(error|warning):\s(.*)
+    - match: ([^:]+):([0-9]+):([0-9]+):\s(error|warning):\s(.*)
       captures:
-        1: constant.other
-        2: constant.numeric
-        4: constant.numeric
-        5: keyword
-        6: string
+        1: entity.name.class filename
+        2: constant.numeric line 
+        3: constant.numeric column
+        4: keyword
+        5: string
