@@ -1,6 +1,7 @@
-import os.path
+import os
 from .atpkg.atpkg_package import Package
 from .atpkg.task import LLBuildTask
+
 def findAtpkg(forSourceFile):
     """Finds an atpkg by walking up the filesystem"""
     forSourcefile = os.path.abspath(forSourceFile)
@@ -14,13 +15,7 @@ def findAtpkg(forSourceFile):
 def taskForSourceFile(sourcePath):
     """Looks up an LLBuildTask for the given source path"""
     atpkg = findAtpkg(sourcePath)
-    #convert path to relative to the base path
-    sourcePath = os.path.relpath(sourcePath, start=os.path.dirname(atpkg))
-    #load atpkg
-    atpkg = Package.fromFile(atpkg)
-    for task in atpkg.__dict__["tasks"].values():
-        if not isinstance(task, LLBuildTask): continue
-        if sourcePath in task.collect_sources(): return task
+    return Package.fromFile(atpkg).task_for_file(sourcePath)
 
 def otherSourceFilesAbs(sourceFile):
     """Finds the other source files (absolute paths) for the given path, based on looking up the atpkg build file"""
@@ -29,7 +24,7 @@ def otherSourceFilesAbs(sourceFile):
         print("Warning: not able to look up atpkg for file %s" % sourceFile)
         return []
     sourcePath = os.path.relpath(sourceFile, start=os.path.dirname(task.root_path))
-    otherSources = filter(lambda x: x != sourcePath, task.collect_sources())
+    otherSources = filter(lambda x: x != sourcePath, task.source_files)
     otherSources = map(lambda x: os.path.abspath(os.path.join(os.path.dirname(task.root_path), x)), otherSources)
     return list(otherSources)
 

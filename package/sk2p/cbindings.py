@@ -7,17 +7,10 @@ We expose an object for most of the underlying C objects, and handle the memory 
 from ctypes import cdll, c_char_p, c_void_p, POINTER, c_size_t, c_int64, c_int, Structure, c_bool
 import json
 
-"""# Stores the SourceKit singleton"""
-_sk = None
-
-
 class SourceKit(object):
-
     """The SourceKit singleton.  This handles startup/shutdown behavior of the underlying SK engine."""
 
     def __init__(self, path):
-        if _sk:
-            raise Exception("Can't re-initialize SourceKit.")
         self._lib = cdll.LoadLibrary(path)
 
         # I have learned some rules about how to avoid segfaults in my time.
@@ -102,18 +95,10 @@ class SourceKit(object):
         self._lib.sourcekitd_response_description_copy.argtypes = [Response]
         self._lib.sourcekitd_response_description_copy.restype = c_char_p
 
-        global _sk
-        _sk = self
-
         self._lib.sourcekitd_initialize()
 
     def __del__(self):
         self._lib.sourcekitd_shutdown()
-
-    @staticmethod
-    def check_loaded():
-        if not _sk:
-            raise Exception("SourceKit not configured.  Please run .configure before using sk2p")
 
 
 class Array(object):

@@ -1,11 +1,14 @@
 import sublime_plugin
 import sublime
-import SublimeAnarchy.package.sk2p.api as api
+from .package.sk2p import SK2PAPI
 from .package import stTextProcessing
 from .package import atpkgTools
-# ST3 loads the plugin twice for some ridiculous reason
-if not api.configured(): api.configure()
 
+def plugin_loaded():
+    global settings
+    global api
+    settings = sublime.load_settings('SublimeAnarchy.sublime-settings')
+    api = SK2PAPI(settings)
 
 class Autocomplete(sublime_plugin.EventListener):
 
