@@ -75,7 +75,7 @@ class LLBuildTask(Task):
 		collectedSources = []
 		import os, fnmatch, glob
 		absRoot = os.path.dirname(self.root_path)
-		for descriptor in self.sources:
+		for descriptor in self.sources[0]:
 			if descriptor.endswith("**.swift"):
 				full_descriptor = os.path.join(absRoot, descriptor)
 				for root, dirs, files in os.walk(os.path.dirname(full_descriptor)):
