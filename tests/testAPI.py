@@ -113,7 +113,7 @@ extension MyAmazingClass {
     }
 }
 let a: MyAmazingClass"""
-      result = api.documentationForCursorPosition(example, len(example))
+      result = api.documentationForCursorPosition(example, len(example) - 1)
 
     def test_blank_line(self):
       # crasher
@@ -133,9 +133,18 @@ class MyGreatClass {
       bSwiftPath = os.path.join(loc, "fixtures/sampleatpkg/src/b.swift")
 
       result = api.documentationForCursorPosition(example, len(example) - 1, otherSourceFiles = [aSwiftPath, bSwiftPath])
-      import pdb
-      pdb.set_trace()
 
+    def test_cursorInfo_offset(self):
+      example = """class MySpecialClass {
+    ///HOW IS THIS EVEN A THING
+    func foo() {
+
+    }
+}
+
+MySpecialClass().foo()"""
+      result = api.cursorInfoOffset(example, len(example) - 3)
+      self.assertIn("HOW IS THIS EVEN", result["key.doc.full_as_xml"])
     
 
 if __name__ == '__main__':

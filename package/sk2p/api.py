@@ -70,7 +70,15 @@ class SK2PAPI(object):
             return closestMatch
         return None
 
-    def cursorInfo(self, sourceText, usr, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
+    def __annotationBefore(self, cursorPosition, annotations):
+        """Returns the first annotation at or before the given cursor position.  Assumes an ordered list of annotations."""
+        for annotation in reversed(annotations):
+            a_offset = annotation["key.offset"]
+            a_length = annotation["key.length"]
+            if a_offset <= cursorPosition:
+                return annotation
+
+    def cursorInfoUsr(self, sourceText, usr, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
         """An undocumented SK 'cursorInfo' request, which mostly seems to query documentation for a particular USR."""
         extraArgs = self.__preparePlatformArgs(extraArgs, noPlatformArgs)
         return cbindings.Request({
@@ -81,72 +89,75 @@ class SK2PAPI(object):
           "key.usr":usr
         }).send().toPython()
 
-    def documentationForCursorPosition(self, sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False, tryKeepingIdentifier = True):
-        sourceTextInfo = self.docInfo(sourceText, extraArgs, otherSourceFiles, noPlatformArgs)
-        annotation = self.__findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.annotations"])
-        revisedOffset = offset
+    def editorOpen(self, sourceText, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
+        """This apparently parses the source file."""
+        extraArgs = self.__preparePlatformArgs(extraArgs, noPlatformArgs)
+        return cbindings.Request({
+          "key.request": cbindings.UIdent("source.request.editor.open"),
+          "key.name": "DoesItMatter",
+          "key.sourcetext":sourceText
+        }).send().toPython()
 
-        if not annotation: 
-            # If there was no annotation at the exact location, can we find an annotation at a close location?
-            annotation = self.__findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.annotations"], acceptClosest = True)
-            if annotation:
-                #okay, let's back up to the last annotation we understand and try the docInfo again
-                #this is commonly used to get around e.g. `a.appendString(` (where docInfo does not like that trailing `(`
-                revisedText = sourceText[:annotation["key.offset"] + annotation["key.length"]]
-                revisedOffset = annotation["key.offset"] # rely on the offset of the annotation here, rather than trying to fix it
-                return self.documentationForCursorPosition(revisedText, revisedOffset, otherSourceFiles, extraArgs, noPlatformArgs)
-        if not "key.usr" in annotation: 
-            # if what we found is an "identifier", then this may be a case of Swift latching onto the arguments..
-            # they might be invalid, for example, in the case where we have just accepted an autocompletion.
-            if annotation["key.kind"] == "source.lang.swift.syntaxtype.identifier":
+    def cursorInfoOffset(self, sourceText, offset, extraArgs = [], otherSourceFiles = [], noPlatformArgs = False):
+        """An undocumented SK 'cursorInfo' request, which mostly seems to query documentation for a particular offset."""
+        # This request only works when given a real file.  I don't know why.
+        # The request is not actually documented, so I'm not sure if upstream considers this a bug or expected behavior
+        # in any event, let's write sourcetext out to a tempfile and try that way.
+        import tempfile
+        temp = tempfile.NamedTemporaryFile(mode="w")
+        temp.write(sourceText)
+        temp.flush()
+        extraArgs = self.__preparePlatformArgs(extraArgs, noPlatformArgs)
+        result = cbindings.Request({
+          "key.request": cbindings.UIdent("source.request.cursorinfo"),
+          "key.compilerargs": [temp.name] + otherSourceFiles + extraArgs,
+          "key.sourcefile" : temp.name,
+          "key.offset":offset
+        }).send().toPython()
+        temp.close()
+        return result
 
-                if tryKeepingIdentifier: # don't stack overflow by continuing to try a failing strategy
-                    #first, let's try to remove just the stuff coming after the current identifier.
-                    #this handles the case where we have e.g.
-                    # a.foo(INVALID STUFF)
-                    #    ^
-                    # and we turn that to
-                    # a.foo
-                
-                    revisedText = sourceText[:annotation["key.offset"] + annotation["key.length"]]
-                    if offset > len(revisedText): revisedOffset = len(revisedText)
-                    attempt = self.documentationForCursorPosition(revisedText, revisedOffset, otherSourceFiles, extraArgs, noPlatformArgs, tryKeepingIdentifier = False)
-                    if attempt: return attempt
-
-                #Right, so that didn't work.  What if we got stuck in the argument itself?  e.g.
-                # a.foo(INVALID STUFF)
-                #           ^
-                # we still want
-                # a.foo
-                # in that case, so let's try removing the entire identifer
-
-                revisedText = sourceText[:annotation["key.offset"]]
-                if offset > len(revisedText): revisedOffset = len(revisedText)
-                return self.documentationForCursorPosition(revisedText, revisedOffset, otherSourceFiles, extraArgs, noPlatformArgs)
+    def documentationForCursorPosition(self, sourceText, offset, otherSourceFiles = [], extraArgs = [], noPlatformArgs = False):
+        if offset >= len(sourceText): raise Exception("offset must be less than", len(sourceText))
+        if offset < 0:
             return None
-                
-        #okay, we have a usr.  Maybe we already have the entity for this usr?
-        if "key.entities" in sourceTextInfo:
-            #flatten all the entities with a recursive descent parser
-            def rdp(items):
-                allKids = []
-                for item in items:
-                    if "key.entities" in item:
-                        allKids += rdp(item["key.entities"])
-                        del item["key.entities"] #don't duplicate
-                    allKids += [item]
-                return allKids
-            entities = rdp(sourceTextInfo["key.entities"])
-            entity = filter(lambda x: "key.usr" in x and x["key.usr"] == annotation["key.usr"], entities)
-            for entity in entity:
-                if "key.doc.full_as_xml" in entity:
-                    return entity["key.doc.full_as_xml"]
-                return None
-
-        # Nope.  Check cursorInfo for clues
-        info = self.cursorInfo(sourceText, annotation["key.usr"], extraArgs, otherSourceFiles, noPlatformArgs)
+        info = self.cursorInfoOffset(sourceText, offset, extraArgs, otherSourceFiles, noPlatformArgs)
         if "key.doc.full_as_xml" in info:
             return info["key.doc.full_as_xml"]
+
+        #look for a result earlier in the string, but not a newline:
+        searchOffset = offset
+        while searchOffset >= 0 and sourceText[searchOffset] != "\n":
+            test = self.cursorInfoOffset(sourceText, searchOffset, otherSourceFiles, extraArgs, noPlatformArgs)
+            if "key.doc.full_as_xml" in test:
+                return test["key.doc.full_as_xml"]
+            searchOffset -= 1
+
+        # if we're located inside an "identifier", this may be a case of Swift latching onto the arguments..
+        # they might be invalid, for example, in the case where we have just accepted an autocompletion.
+        # try removing them
+        sourceTextInfo = self.editorOpen(sourceText, extraArgs, otherSourceFiles, noPlatformArgs)
+        annotation = self.__findAnnotationForSourceText(sourceText, offset, sourceTextInfo["key.syntaxmap"])
+
+        if not annotation: return None #no annotation, give up
+        
+        if annotation["key.kind"] == "source.lang.swift.syntaxtype.identifier":
+            #first, let's try to remove just the stuff coming after the current identifier.
+            #this handles the case where we have e.g.
+            # a.foo(INVALID STUFF)
+            #    ^
+            # and we turn that to
+            # a.foo
+            searchOffset = offset
+            while True:
+                earlierAnnotation = self.__annotationBefore(searchOffset, sourceTextInfo["key.syntaxmap"])
+                if not earlierAnnotation: break
+                searchOffset = earlierAnnotation["key.offset"]
+                revisedText = sourceText[:searchOffset+earlierAnnotation["key.length"]]
+                test = self.cursorInfoOffset(revisedText, searchOffset, extraArgs, otherSourceFiles, noPlatformArgs)
+                if "key.doc.full_as_xml" in test:
+                    return test["key.doc.full_as_xml"]
+                searchOffset -= 1
 
         # todo: look at objc documentation
 
