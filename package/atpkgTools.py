@@ -15,6 +15,7 @@ def findAtpkg(forSourceFile):
 def taskForSourceFile(sourcePath):
     """Looks up an LLBuildTask for the given source path"""
     atpkg = findAtpkg(sourcePath)
+    if not atpkg: return None
     return Package.fromFile(atpkg).task_for_file(sourcePath)
 
 def otherSourceFilesAbs(sourceFile):

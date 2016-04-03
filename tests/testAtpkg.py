@@ -57,3 +57,9 @@ class TestLookups(unittest.TestCase):
         otherSources = tools.otherSourceFilesAbs(aSwiftPath)
         self.assertIn(os.path.join(loc, "fixtures/sampleatpkg/src/b.swift"),otherSources)
         self.assertIn(os.path.join(loc, "fixtures/sampleatpkg/extra/foo.swift"),otherSources)
+
+    def test_sourcelookup_noatpkg(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        aSwiftPath = os.path.join(loc, "fixtures/noatpkg/foo.swift")
+        otherSources = tools.otherSourceFilesAbs(aSwiftPath)
+        self.assertEqual(otherSources,[])
