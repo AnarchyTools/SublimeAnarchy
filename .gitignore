@@ -1,3 +1,6 @@
 __pycache__
 *.pyc
+
+#We're not sure who makes these or why
 package/clojure/parsetab.py
+package/clojure/parser.out
