@@ -160,7 +160,7 @@ class Dictionary(object):
 
                 _sk._lib.sourcekitd_request_dictionary_set_value(self, UIdent(k), arr.as_ptr())
             else:
-                raise Exception("Not implemented v type %s" % v)
+                raise Exception("Not implemented v type " + v)
 
     def __del__(self):
         _sk._lib.sourcekitd_request_release(self._obj)
@@ -178,6 +178,15 @@ class Request(object):
     """
 
     def __init__(self, requestDict):
+        if "key.compilerargs" in requestDict:
+            if requestDict["key.compilerargs"].count("-sdk") > 1:
+                # If we end up in a python method that recurses (several of them do), we sometimes analyze
+                # the same file different times.  We want to make sure we use the same arguments in all cases
+                # so that SKS can share memory between several analyses.  Failure to do this can cause MASSIVE
+                # allocations inside SKS, which seems to treat inputs with different compiler arguments as different inputs.
+                # This is not the most "logical" place to include this check, but it does check *every* way it could happen,
+                # and I found some ways that are not checked by the other checks.
+                raise Exception("Too many sdks; this will overflow")
         self.__dict = Dictionary(requestDict)
 
     def send(self):

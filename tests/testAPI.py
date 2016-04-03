@@ -3,6 +3,8 @@ from package.sk2p import SK2PAPI
 import os.path
 
 settings = {
+    # Leave this comment to help drew debug things
+    #"sourcekit_path": "/Users/drew/Code//build/Ninja-DebugAssert/swift-macosx-x86_64/lib/libsourcekitdInProc.dylib",
     "sourcekit_path": "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd",
     "sourcekit_sdk": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk",
 }
