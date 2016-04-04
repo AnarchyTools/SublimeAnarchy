@@ -69,7 +69,7 @@ contexts:
       scope: storage.type
 
     # built in functions
-    - match: \b(get|set|numericCast|anyGenerator|withExtendedLifetime|withVaList)
+    - match: \b(get|set|numericCast|anyGenerator|withExtendedLifetime|withVaList)\b
       scope: support.function
     - match: \b(abs|alignof|alignofValue|assert|assertionFailure|debugPrint|dump|fatalError|getVaList|isUniquelyReferenced|max|min|precondition|preconditionFailure|print|readLine|sizeof|sizeofValue|strideof|strideofValue|swap|transcode|unsafeAddressOf|unsafeBitCast|unsafeDowncast|unsafeUnwrap|withUnsafeMutablePointer|withUnsafeMutablePointers|withUnsafePointer|withUnsafePointers|zip)\s*\(
       captures:
