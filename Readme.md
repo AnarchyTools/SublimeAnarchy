@@ -52,7 +52,7 @@ Example content of `Project.sublime-project`:
 		{
 			"path": ".",
 			"folder_exclude_patterns": [ ".atllbuild", "bin" ],
-		},
+		}
 	]
 }
 ```
