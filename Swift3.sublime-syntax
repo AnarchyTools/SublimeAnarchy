@@ -221,6 +221,12 @@ contexts:
     - match: '[-+=<>^$#!~*\\|&?\/]*'
       scope: keyword.operator
 
+    # ranges
+    - match: (\.\.\.)
+      scope: keyword.operator
+    - match: (\.\.<)
+      scope: keyword.operator
+
   constants:
     - match: \b(true|false|nil)\b
       scope: constant.language
