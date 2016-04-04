@@ -176,10 +176,17 @@ contexts:
       push: functionCallParameters
 
     # functions calls
-    - match: '(\.)({{identifier}})\s*\('
+    - match: '(\.)({{identifier}})\s*(\()'
       captures:
         1: punctuation
         2: entity.name.function
+        3: punctuation
+      push: functionCallParameters
+
+    - match: '([a-zA-Z_][A-Za-z_0-9]*)\s*(\()'
+      captures:
+        1: entity.name.function
+        2: punctuation
       push: functionCallParameters
 
     # get/set calls
