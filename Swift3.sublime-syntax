@@ -274,7 +274,7 @@ contexts:
     - match: \s(->)\s*
       scope: keyword
       push: typeDefinition 
-    - match: (\{)
+    - match: (\{|\n)
       pop: true
 
   functionParameterDefinition:
@@ -378,10 +378,10 @@ contexts:
 
   # chain of variables
   variableChain:
-    - match: '(\.)({{identifier}})\s*\('
+    - match: '({{identifier}})\s*(\()'
       captures:
-        1: punctuation
-        2: entity.name.function
+        1: entity.name.function
+        2: punctuation
       push: functionCallParameters
     - match: (\.)
       scope: punctuation
