@@ -1,0 +1,9 @@
+[
+	{
+		"keys": [ "ctrl+shift+a" ],
+		"command": "atbuild",
+		"args": {
+			"build_last": true
+		}
+	}
+]

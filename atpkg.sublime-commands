@@ -1,5 +1,12 @@
 [
 	{
+		"caption": "AnarchyTools: Rebuild last target",
+		"command": "atbuild",
+		"args": {
+			"build_last": true
+		}
+	},
+	{
 		"caption": "AnarchyTools: Build",
 		"command": "atbuild",
 		"args": {
