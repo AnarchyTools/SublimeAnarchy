@@ -232,6 +232,8 @@ def update_markers(view):
     # collect markers
     rgn = {"error": [], "info": [], "warning": []}
     for marker in markers.get(view.window().id(), []):
+        if marker['filename'] != view.file_name():
+            continue
         location = view.text_point(marker['row'], marker['col'])
         line = view.line(location)
         found = False
