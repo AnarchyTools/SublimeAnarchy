@@ -242,7 +242,7 @@ contexts:
       scope: punctuation.embedded
       set: stringInterpolation
     - match: \\.
-      scope: constant.character.escape.c
+      scope: constant.character.escape
     - match: '"'
       pop: true
 
