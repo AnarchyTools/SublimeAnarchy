@@ -129,7 +129,9 @@ contexts:
       push: parameter
     - match: '(\s|\||&|=)(\.{{class_path}}*)\b'
       scope: constant.other
-
+    - match: '\b(case)\s+'
+      captures:
+        1: keyword
 
     # comments
     - match: (//+)
