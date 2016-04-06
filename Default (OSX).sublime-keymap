@@ -5,5 +5,23 @@
 		"args": {
 			"build_last": true
 		}
+	},
+	{
+		"keys": [ "super+alt+r" ],
+		"command": "atdebug"
+	},
+	{
+		"keys": [ "super+alt+b" ],
+		"command": "atlldb",
+		"args": {
+			"toggle_breakpoint": true
+		}
+	},
+	{
+		"keys": [ "super+alt+e" ],
+		"command": "atlldb",
+		"args": {
+			"enable_disable_breakpoint": true
+		}
 	}
 ]

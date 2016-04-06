@@ -28,10 +28,28 @@
 		}
 	},
 	{
-		"caption": "AnarchyTools: Run",
+		"caption": "AnarchyTools: Run Task Group",
 		"command": "atbuild",
 		"args": {
 			"tool": "nop"
+		}
+	},
+	{
+		"caption": "AnarchyTools: Start debugging",
+		"command": "atdebug"
+	},
+	{
+		"caption": "AnarchyTools: Toggle Breakpoint",
+		"command": "atlldb",
+		"args": {
+			"toggle_breakpoint": true
+		}
+	},
+	{
+		"caption": "AnarchyTools: Enable/Disable Breakpoint",
+		"command": "atlldb",
+		"args": {
+			"enable_disable_breakpoint": true
 		}
 	}
 ]

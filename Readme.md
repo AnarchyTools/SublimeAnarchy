@@ -47,13 +47,27 @@ Example content of `Project.sublime-project`:
 
 ```
 {
-	"folders":
-	[
+	"folders": [
 		{
 			"path": ".",
 			"folder_exclude_patterns": [ ".atllbuild", "bin" ],
 		}
 	]
+	"settings": {
+		"anarchyTools": {
+			"debug": {
+				"executable": "${project_path}/bin/atpm",
+				"params": [
+					"info"
+				],
+				"path": [
+				],
+				"environment": [
+				],
+				"working_dir": "${project_path}"
+			}
+		}
+	}
 }
 ```
 
