@@ -103,20 +103,23 @@ class atdebug(sublime_plugin.WindowCommand):
 
 class atlldb(sublime_plugin.TextCommand):
 
-    def save_breakpoints(self, lldb):
-        project_data = self.view.window().project_data()
-        breakpoints = lldb.get_breakpoints()
-        for bp in breakpoints:
-            del bp['id']
+    @staticmethod
+    def save_breakpoints(window, lldb=None, breakpoints=None):
+        project_data = window.project_data()
+        if lldb:
+            breakpoints = lldb.get_breakpoints()
+            for bp in breakpoints:
+                del bp['id']
         if 'settings' not in project_data:
             project_data['settings'] = {}
         if 'SublimeAnarchy' not in project_data['settings']:
             project_data['settings']['SublimeAnarchy'] = {}
         project_data['settings']['SublimeAnarchy']['breakpoints'] = breakpoints
-        self.view.window().set_project_data(project_data)
+        window.set_project_data(project_data)
 
-    def load_breakpoints(self, lldb):
-        breakpoints = self.view.window().project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
+    @staticmethod
+    def load_breakpoints(window, lldb):
+        breakpoints = window.project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
         lldb.delete_all_breakpoints()
         for bp in breakpoints:
             bp_id = lldb.set_breakpoint(bp['file'], bp['line'], bp['condition'], bp['ignore_count'])
@@ -128,25 +131,25 @@ class atlldb(sublime_plugin.TextCommand):
         for lldb_bp in breakpoints:
             if lldb_bp['file'] == bp['file'] and lldb_bp['line'] == bp['line']:
                 lldb.disable_breakpoint(lldb_bp['id'])
-        self.save_breakpoints(lldb)
+        self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def _enable_breakpoint(self, lldb, bp):
         breakpoints = lldb.get_breakpoints()
         for lldb_bp in breakpoints:
             if lldb_bp['file'] == bp['file'] and lldb_bp['line'] == bp['line']:
                 lldb.enable_breakpoint(lldb_bp['id'])
-        self.save_breakpoints(lldb)
+        self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def _create_breakpoint(self, lldb, file, line):
         lldb.set_breakpoint(file, line, None, 0)
-        self.save_breakpoints(lldb)
+        self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def _remove_breakpoint(self, lldb, bp):
         breakpoints = lldb.get_breakpoints()
         for lldb_bp in breakpoints:
             if lldb_bp['file'] == bp['file'] and lldb_bp['line'] == bp['line']:
                 lldb.delete_breakpoint(lldb_bp['id'])
-        self.save_breakpoints(lldb)
+        self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def toggle_breakpoint(self, lldb):
         breakpoints = self.view.window().project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
@@ -154,13 +157,30 @@ class atlldb(sublime_plugin.TextCommand):
         cursor = self.view.sel()[0].begin()
         row, col = self.view.rowcol(cursor)
 
-        found = False
+        found = []
+        new_bps = []
         for bp in breakpoints:
             if bp['file'] == self.view.file_name() and bp['line'] == row:
-                self._remove_breakpoint(lldb, bp)
-                found = True
-        if not found:
-            self._create_breakpoint(lldb, self.view.file_name(), row)
+                if lldb:
+                    self._remove_breakpoint(lldb, bp)
+                found.append(bp)
+
+        if len(found) == 0:
+            print("new")
+            breakpoints.append({
+                "file": self.view.file_name(),
+                "line": row,
+                "enabled": True,
+                "condition": None,
+                "ignore_count": 0
+            })
+            if lldb:
+                self._create_breakpoint(lldb, self.view.file_name(), row)
+        else:
+            for bp in found:
+                breakpoints.remove(bp)
+        if not lldb:
+            self.save_breakpoints(self.view.window(), breakpoints=breakpoints)
         update_markers(self.view)
 
     def enable_disable_breakpoint(self, lldb):
@@ -172,11 +192,17 @@ class atlldb(sublime_plugin.TextCommand):
         found = False
         for bp in breakpoints:
             if bp['file'] == self.view.file_name() and bp['line'] == row and bp['enabled'] == True:
-                self._disable_breakpoint(lldb, bp)
+                bp['enabled'] = False
+                if lldb:
+                    self._disable_breakpoint(lldb, bp)
                 found = True
             elif bp['file'] == self.view.file_name() and bp['line'] == row and bp['enabled'] == False:
-                self._enable_breakpoint(lldb, bp)
+                bp['enabled'] = True
+                if lldb:
+                    self._enable_breakpoint(lldb, bp)
                 found = True
+        if not lldb:
+            self.save_breakpoints(self.view.window(), breakpoints=breakpoints)
         update_markers(self.view)
 
     def run(self, *args, **kwargs):
@@ -190,8 +216,19 @@ class atlldb(sublime_plugin.TextCommand):
         if "source.swift" in self.view.scope_name(0) and self.view.window().project_file_name():
             if not atpkgTools.findAtpkg(self.view.window().project_file_name()):
                 return False
-        if not debuggers.get(self.view.window().id(), None):
+
+        # only show enable/disable when there is a breakpoint
+        if kwargs.get('enable_disable_breakpoint', False):
+            breakpoints = self.view.window().project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
+            cursor = self.view.sel()[0].begin()
+            row, col = self.view.rowcol(cursor)
+    
+            new_bps = []
+            for bp in breakpoints:
+                if bp['file'] == self.view.file_name() and bp['line'] == row:
+                    return True
             return False
+
         return True
 
 class LLDBBreakPointHighlighter(sublime_plugin.EventListener):
