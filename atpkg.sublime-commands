@@ -35,8 +35,18 @@
 		}
 	},
 	{
-		"caption": "AnarchyTools: Start debugging",
-		"command": "atdebug"
+		"caption": "AnarchyTools: Start debugger",
+		"command": "atdebug",
+		"args": {
+			"start": true
+		}
+	},
+	{
+		"caption": "AnarchyTools: Stop debugger",
+		"command": "atdebug",
+		"args": {
+			"stop": true
+		}
 	},
 	{
 		"caption": "AnarchyTools: Toggle Breakpoint",

@@ -8,7 +8,10 @@
 	},
 	{
 		"keys": [ "super+alt+r" ],
-		"command": "atdebug"
+		"command": "atdebug",
+		"args": {
+			"start": true
+		}
 	},
 	{
 		"keys": [ "super+alt+b" ],
@@ -18,7 +21,7 @@
 		}
 	},
 	{
-		"keys": [ "super+alt+e" ],
+		"keys": [ "super+alt+shift+b" ],
 		"command": "atlldb",
 		"args": {
 			"enable_disable_breakpoint": true

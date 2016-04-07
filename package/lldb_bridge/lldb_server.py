@@ -324,7 +324,8 @@ def get_breakpoints():
             "line": loc.GetLine(),
             "enabled": bp.IsEnabled(),
             "condition": bp.GetCondition(),
-            "ignore_count": bp.GetIgnoreCount()
+            "ignore_count": bp.GetIgnoreCount(),
+            "id": bp.id
         })
     return breakpoints
 
