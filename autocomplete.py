@@ -33,7 +33,6 @@ class Autocomplete(sublime_plugin.EventListener):
             name = " " + name
 
             #append type onto the name
-            name += "\nFoo"
             name += "\t" + stTextProcessing.shortType(o["key.kind"])
             sk_completions.append((name, stPlaceholder))
         # completions = [("example", "example"), ("example2\tfoo", "${2:placeholder}example2")]
