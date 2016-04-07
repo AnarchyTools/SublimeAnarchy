@@ -3,6 +3,8 @@ import sublime
 import json
 import random
 import xmlrpc.client
+from http.client import CannotSendRequest
+import threading
 
 import os
 import xmlrpc.client
@@ -20,11 +22,14 @@ def plugin_loaded():
     global settings
     settings = sublime.load_settings('SublimeAnarchy.sublime-settings')
 
+def plugin_unloaded():
+    for key, debugger in debuggers.items():
+        debugger.shutdown_server()        
+
 class atdebug(sublime_plugin.WindowCommand):
 
     def debugger_thread(self, p, port, window):
         project_settings = window.project_data().get('settings', {}).get('SublimeAnarchy', {}).get('debug', {})
-        print(project_settings)
         lldb = xmlrpc.client.ServerProxy('http://localhost:' + str(port), allow_none=True)
 
         project_path = os.path.dirname(window.project_file_name())
@@ -39,6 +44,7 @@ class atdebug(sublime_plugin.WindowCommand):
         #     sleep(1)
         #     lldb.start()
         debuggers[window.id()] = lldb
+        atlldb.load_breakpoints(window, lldb)
 
         # polling loop
         try:
@@ -52,9 +58,12 @@ class atdebug(sublime_plugin.WindowCommand):
                 stdout_buffer = lldb.get_stdout()
                 if len(stdout_buffer) > 0:
                     print("STDOUT:", stdout_buffer)
+        except CannotSendRequest:
+            pass
         except Exception as e:
             print("exception", e)
             # so the debug server exited or crashed
+            del debuggers[window.id()]
             p.wait()
 
     def _start_debugger(self):
