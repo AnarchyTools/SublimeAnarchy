@@ -61,5 +61,10 @@
 		"args": {
 			"enable_disable_breakpoint": true
 		}
+	},
+	{
+		"caption": "AnarchyTools: Show Doc",
+		"command": "showdoc",
+		"args": { }
 	}
 ]

@@ -33,7 +33,6 @@ class Autocomplete(sublime_plugin.EventListener):
             name = " " + name
 
             #append type onto the name
-            name += "\nFoo"
             name += "\t" + stTextProcessing.shortType(o["key.kind"])
             sk_completions.append((name, stPlaceholder))
         # completions = [("example", "example"), ("example2\tfoo", "${2:placeholder}example2")]
@@ -44,42 +43,3 @@ class Autocomplete(sublime_plugin.EventListener):
     #     if not self.enable(view): return False
     #     if view.command_history(0):
     #         print(view.command_history(0))
-
-    def on_selection_modified_async(self,view):
-        if not self.enable(view): return []
-        text = view.substr(sublime.Region(0, view.size()))
-        sel = view.sel()
-        region1 = sel[0]
-        docInfo = api.documentationForCursorPosition(text, region1.begin())
-        if not docInfo: return
-        processedDoc = stTextProcessing.fromXMLDoc(docInfo)
-        #wrap in a style
-        processedDoc = """<style>
-html {
-    background-color: #232628;
-    color: #CCCCCC;
-}
-
-body {
-    font-size: 14px;
-    font-family: Palatino;
-}
-pre {
-    font-size: 13px;
-    font-family: Menlo;
-}
-
-a {
-    color: #6699cc;
-}
-
-b {
-    color: #cc99cc;
-}
-
-h1 {
-    color: #99cc99;
-    font-size: 14px;
-}
-</style>""" + processedDoc + ""
-        view.show_popup(processedDoc, on_navigate=print)

@@ -31,6 +31,12 @@ class FindAtpkg(unittest.TestCase):
         result = tools.findAtpkg(os.path.join(foo3,"foo.swift"))
         self.assertEqual(result, atbuildFile)
 
+    def test_findatpkg_single(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        aSwiftPath = os.path.join(loc, "fixtures/singleSourceFileAtpkg/foo.swift")
+        atpkg = tools.taskForSourceFile(aSwiftPath)
+        self.assertTrue(atpkg)
+
 class TestParsing(unittest.TestCase):
     def test_parse(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -61,5 +67,10 @@ class TestLookups(unittest.TestCase):
     def test_sourcelookup_noatpkg(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
         aSwiftPath = os.path.join(loc, "fixtures/noatpkg/foo.swift")
+        otherSources = tools.otherSourceFilesAbs(aSwiftPath)
+        self.assertEqual(otherSources,[])
+    def test_sourcelookup_single(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        aSwiftPath = os.path.join(loc, "fixtures/singleSourceFileAtpkg/foo.swift")
         otherSources = tools.otherSourceFilesAbs(aSwiftPath)
         self.assertEqual(otherSources,[])
