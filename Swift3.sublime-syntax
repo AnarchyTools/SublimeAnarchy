@@ -69,7 +69,7 @@ contexts:
       scope: storage.type
 
     # built in functions
-    - match: \b(get|set|numericCast|anyGenerator|withExtendedLifetime|withVaList)
+    - match: \b(get|set|numericCast|anyGenerator|withExtendedLifetime|withVaList)\b
       scope: support.function
     - match: \b(abs|alignof|alignofValue|assert|assertionFailure|debugPrint|dump|fatalError|getVaList|isUniquelyReferenced|max|min|precondition|preconditionFailure|print|readLine|sizeof|sizeofValue|strideof|strideofValue|swap|transcode|unsafeAddressOf|unsafeBitCast|unsafeDowncast|unsafeUnwrap|withUnsafeMutablePointer|withUnsafeMutablePointers|withUnsafePointer|withUnsafePointers|zip)\s*\(
       captures:
@@ -129,7 +129,9 @@ contexts:
       push: parameter
     - match: '(\s|\||&|=)(\.{{class_path}}*)\b'
       scope: constant.other
-
+    - match: '\b(case)\s+'
+      captures:
+        1: keyword
 
     # comments
     - match: (//+)
@@ -174,10 +176,17 @@ contexts:
       push: functionCallParameters
 
     # functions calls
-    - match: '(\.)({{identifier}})\s*\('
+    - match: '(\.)({{identifier}})\s*(\()'
       captures:
         1: punctuation
         2: entity.name.function
+        3: punctuation
+      push: functionCallParameters
+
+    - match: '([a-zA-Z_][A-Za-z_0-9]*)\s*(\()'
+      captures:
+        1: entity.name.function
+        2: punctuation
       push: functionCallParameters
 
     # get/set calls
@@ -186,6 +195,17 @@ contexts:
         1: punctuation
         2: variable
 
+    # negative numbers
+    - match: (-[0-9])
+      scope: constant.numeric
+      push: number
+
+    # positive numbers
+    - match: ([0-9])
+      scope: constant.numeric
+      push: number
+
+    # constants and operators
     - include: constants
     - include: operators
 
@@ -199,6 +219,12 @@ contexts:
     - match: '\$[0-9]+'
       scope: variable.parameter
     - match: '[-+=<>^$#!~*\\|&?\/]*'
+      scope: keyword.operator
+
+    # ranges
+    - match: (\.\.\.)
+      scope: keyword.operator
+    - match: (\.\.<)
       scope: keyword.operator
 
   constants:
@@ -216,7 +242,7 @@ contexts:
       scope: punctuation.embedded
       set: stringInterpolation
     - match: \\.
-      scope: constant.character.escape.c
+      scope: constant.character.escape
     - match: '"'
       pop: true
 
@@ -225,6 +251,13 @@ contexts:
     - match: '\)'
       scope: punctuation.embedded
       set: string
+
+  # numbers 
+  number:
+    - match: ([0-9]*)(\.[0-9]+)?([eE][-]?[0-9]*(\.[0-9]+)?)
+      scope: constant.numeric
+    - match: ''
+      pop: true
 
   # function definitions
   funcDefinition:
@@ -241,7 +274,7 @@ contexts:
     - match: \s(->)\s*
       scope: keyword
       push: typeDefinition 
-    - match: (\{)
+    - match: (\{|\n)
       pop: true
 
   functionParameterDefinition:
@@ -345,10 +378,10 @@ contexts:
 
   # chain of variables
   variableChain:
-    - match: '(\.)({{identifier}})\s*\('
+    - match: '({{identifier}})\s*(\()'
       captures:
-        1: punctuation
-        2: entity.name.function
+        1: entity.name.function
+        2: punctuation
       push: functionCallParameters
     - match: (\.)
       scope: punctuation

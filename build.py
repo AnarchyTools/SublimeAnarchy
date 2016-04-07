@@ -12,6 +12,7 @@ from .package.atpkg.atpkg_package import Package
 markers = {}
 markers_updated = {}
 markers_view_updated = {}
+last_build_target = {}
 
 def plugin_loaded():
     global settings
@@ -21,37 +22,42 @@ class atbuild(sublime_plugin.WindowCommand):
 
     def run(self, *args, **kwargs):
         tool = kwargs.get("tool", "atllbuild")
+        build_last = kwargs.get("build_last", False)
         if not self.window.project_file_name():
             return
 
         pkg = Package.fromFile(atpkgTools.findAtpkg(self.window.project_file_name()))   
         probable_task = pkg.task_for_file(self.window.active_view().file_name())
 
-        tasks = []
-        idx = 0
-        for (name, task) in pkg.tasks.items():
-            if task.tool != tool:
-                continue
-            desc = "Task group"
-            if task.tool == "atllbuild":
-                desc = "Compile Swift " + task.output_type.replace("-", " ")
-            elif task.tool == "shell":
-                desc = "Run Shell script"
-            elif task.tool == "xctestrun":
-                desc = "Execute Tests"
-            if task == probable_task:
-                idx = len(tasks)
-            tasks.append([name, desc])
+        if not build_last:
+            tasks = []
+            idx = 0
+            for (name, task) in pkg.tasks.items():
+                if task.tool != tool:
+                    continue
+                desc = "Task group"
+                if task.tool == "atllbuild":
+                    desc = "Compile Swift " + task.output_type.replace("-", " ")
+                elif task.tool == "shell":
+                    desc = "Run Shell script"
+                elif task.tool == "xctestrun":
+                    desc = "Execute Tests"
+                if task == probable_task:
+                    idx = len(tasks)
+                tasks.append([name, desc])
 
-        if len(tasks) == 0:
-            sublime.message_dialog("SublimeAnarchy\n\nThere are no tasks to run")
-            return
+            if len(tasks) == 0:
+                sublime.message_dialog("SublimeAnarchy\n\nThere are no tasks to run")
+                return
 
-        if len(tasks) == 1:
-            self.build(pkg, tasks, 0)
-            return
+            if len(tasks) == 1:
+                self.build(pkg, tasks, 0)
+                return
 
-        self.window.show_quick_panel(tasks, lambda x: self.build(pkg, tasks, x), 0, idx)
+            self.window.show_quick_panel(tasks, lambda x: self.build(pkg, tasks, x), 0, idx)
+        else:
+            if self.window.id() in last_build_target:
+                BuildWithATBuild(self.window, pkg, last_build_target[self.window.id()]).start()
 
     def build(self, pkg, tasks, index):
         if index == -1:
@@ -59,6 +65,7 @@ class atbuild(sublime_plugin.WindowCommand):
         for view in self.window.views():
             if view.file_name():
                 view.run_command("save")
+        last_build_target[self.window.id()] = tasks[index][0]
         BuildWithATBuild(self.window, pkg, tasks[index][0]).start()
 
     def is_enabled(self, *args, **kwargs):
@@ -225,6 +232,8 @@ def update_markers(view):
     # collect markers
     rgn = {"error": [], "info": [], "warning": []}
     for marker in markers.get(view.window().id(), []):
+        if marker['file'] != view.file_name():
+            continue
         location = view.text_point(marker['row'], marker['col'])
         line = view.line(location)
         found = False
