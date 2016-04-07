@@ -74,7 +74,7 @@ def _stop_event():
 
                 status = ",".join(s)
             elif state == eStateStepping:
-                status = "steping"
+                status = "stepping"
             elif state == eStateCrashed:
                 status = "crashed"
             elif state == eStateExited:
@@ -245,6 +245,22 @@ def get_backtrace():
             })
         bt[str(thread.GetThreadID())] = bt_frames
     return bt
+
+def get_backtrace_for_selected_thread():
+    global process
+    if not process:
+        raise Exception("No process to get traces of")
+    thread = process.GetSelectedThread()
+    bt_frames = []
+    for frame in thread.frames:
+        line = frame.GetLineEntry()
+        bt_frames.append({
+            "function": frame.GetFunctionName(),
+            "file": line.file.fullpath,
+            "line": line.GetLine(),
+            "column": line.GetColumn(),
+        })
+    return bt_frames
 
 def get_threads():
     global process
@@ -440,6 +456,7 @@ server.register_function(push_stdin)
 # status
 server.register_function(get_status)
 server.register_function(get_backtrace)
+server.register_function(get_backtrace_for_selected_thread)
 
 # exec command
 server.register_function(execute_lldb_command)

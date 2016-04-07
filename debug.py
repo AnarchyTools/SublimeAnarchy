@@ -5,6 +5,7 @@ import random
 import xmlrpc.client
 from http.client import CannotSendRequest
 import threading
+from contextlib import contextmanager
 
 import os
 import xmlrpc.client
@@ -17,6 +18,7 @@ from .package import atpkgTools
 from .package.atpkg.atpkg_package import Package
 
 debuggers = {} # key = window.id, value lldb proxy
+debug_status = {}
 
 def plugin_loaded():
     global settings
@@ -26,13 +28,24 @@ def plugin_unloaded():
     for key, debugger in debuggers.items():
         debugger.shutdown_server()        
 
-class atdebug(sublime_plugin.WindowCommand):
+@contextmanager
+def retry():
+    while True:
+        try:
+            yield
+        except CannotSendRequest:
+            sleep(0.2)
+            continue
+        break
 
-    def debugger_thread(self, p, port, window):
-        project_settings = window.project_data().get('settings', {}).get('SublimeAnarchy', {}).get('debug', {})
-        lldb = xmlrpc.client.ServerProxy('http://localhost:' + str(port), allow_none=True)
+def debugger_thread(p, port, window):
+    sleep(0.5)
 
-        project_path = os.path.dirname(window.project_file_name())
+    project_settings = window.project_data().get('settings', {}).get('SublimeAnarchy', {}).get('debug', {})
+    lldb = xmlrpc.client.ServerProxy('http://localhost:' + str(port), allow_none=True)
+
+    project_path = os.path.dirname(window.project_file_name())
+    with retry():
         lldb.prepare(
             project_settings.get('executable').replace('${project_path}', project_path),
             project_settings.get('params', []),
@@ -40,31 +53,54 @@ class atdebug(sublime_plugin.WindowCommand):
             project_settings.get('path', None),
             project_settings.get('working_dir', project_path).replace('${project_path}', project_path)
         )
-        # while lldb.get_status() != "stopped,signal":
-        #     sleep(1)
-        #     lldb.start()
-        debuggers[window.id()] = lldb
-        atlldb.load_breakpoints(window, lldb)
+    debuggers[window.id()] = lldb
 
-        # polling loop
-        try:
-            old_status = None
-            while True:
-                sleep(1)
-                new_status = lldb.get_status()
-                if old_status != new_status:
-                    old_status = new_status
-                    print("Status changed:", new_status)
+    # load saved breakpoints
+    atlldb.load_breakpoints(window, lldb)
+
+    # start the app
+    status = "unknown"
+    while status != "stopped,signal":
+        with retry():
+            status = lldb.get_status()
+        sleep(0.5)
+
+    with retry():
+        lldb.start()
+
+    # polling loop
+    debug_status[window.id()] = "stopped,signal"
+    try:
+        while True:
+            sleep(1)
+            with retry():
+                status = lldb.get_status()
+            if debug_status[window.id()] != status:
+                debug_status[window.id()] = status
+                for view in window.views():
+                    view.set_status('lldb', 'LLDB: ' + status)
+                if status.startswith('stopped') or status.startswith('crashed'):
+                    update_run_marker(window, lldb=lldb)
+                if status.startswith('exited'):
+                    lldb.shutdown_server()
+            with retry():
                 stdout_buffer = lldb.get_stdout()
-                if len(stdout_buffer) > 0:
-                    print("STDOUT:", stdout_buffer)
-        except CannotSendRequest:
-            pass
-        except Exception as e:
-            print("exception", e)
-            # so the debug server exited or crashed
-            del debuggers[window.id()]
-            p.wait()
+            if len(stdout_buffer) > 0:
+                print("STDOUT:", stdout_buffer)
+    except Exception as e:
+        print("exception", e)
+
+    # so the debug server exited or crashed
+    if window.id() in debuggers:
+        del debuggers[window.id()]
+    if window.id() in debug_status:
+        del debug_status[window.id()]
+    for view in window.views():
+        view.erase_status('lldb')
+    update_run_marker(view.window())
+    p.wait()
+
+class atdebug(sublime_plugin.WindowCommand):
 
     def _start_debugger(self):
         self._stop_debugger()
@@ -72,21 +108,46 @@ class atdebug(sublime_plugin.WindowCommand):
         port = random.randint(12000,13000)
         lldb_server_executable = os.path.join(sublime.packages_path(), "SublimeAnarchy", "package", "lldb_bridge", "lldb_server.py")
         args = ['/usr/bin/python', lldb_server_executable, settings.get('lldb_python_path'), str(port)]
-        print("Starting debug server", args)
         p = Popen(args, cwd=path)
-        sleep(1)
-        threading.Thread(target=self.debugger_thread, name='debugger_thread', args=(p, port, self.window)).start()
+        threading.Thread(target=debugger_thread, name='debugger_thread', args=(p, port, self.window)).start()
 
     def _stop_debugger(self):
-        debugger = debuggers.get(self.window.id(), None)
-        if debugger:
-            debugger.shutdown_server()        
-
+        lldb = debuggers.get(self.window.id(), None)
+        if lldb:
+            with retry():
+                lldb.shutdown_server()
+                
     def run(self, *args, **kwargs):
         if kwargs.get('start', False):
             self._start_debugger()
         if kwargs.get('stop', False):
             self._stop_debugger()
+
+        action = kwargs.get('action', 'nop')
+        with retry():
+            lldb = debuggers.get(self.window.id(), None)
+            if not lldb:
+                return
+            if action == 'nop':
+                return
+            elif action == 'continue':
+                debug_status[self.window.id()] = "running"
+                lldb.start()
+            elif action == 'pause':
+                lldb.pause()
+            elif action == 'step_into':
+                debug_status[self.window.id()] = "stepping"
+                lldb.step_into()
+            elif action == 'step_over':
+                debug_status[self.window.id()] = "stepping"
+                lldb.step_over()
+            elif action == 'step_out':
+                debug_status[self.window.id()] = "stepping"
+                lldb.step_out()
+            elif action == 'stop':
+                lldb.stop()
+
+        update_run_marker(self.window, lldb=lldb)
 
     def is_enabled(self, *args, **kwargs):
         if self.window.project_file_name():
@@ -98,6 +159,10 @@ class atdebug(sublime_plugin.WindowCommand):
 
         if kwargs.get('stop', False) and debuggers.get(self.window.id(), None) != None:
             return True
+
+        if kwargs.get('action', None) and debuggers.get(self.window.id(), None) != None:
+            return True
+
         return False
 
 
@@ -107,7 +172,8 @@ class atlldb(sublime_plugin.TextCommand):
     def save_breakpoints(window, lldb=None, breakpoints=None):
         project_data = window.project_data()
         if lldb:
-            breakpoints = lldb.get_breakpoints()
+            with retry():
+                breakpoints = lldb.get_breakpoints()
             for bp in breakpoints:
                 del bp['id']
         if 'settings' not in project_data:
@@ -120,35 +186,45 @@ class atlldb(sublime_plugin.TextCommand):
     @staticmethod
     def load_breakpoints(window, lldb):
         breakpoints = window.project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
-        lldb.delete_all_breakpoints()
+        with retry():
+            lldb.delete_all_breakpoints()
         for bp in breakpoints:
-            bp_id = lldb.set_breakpoint(bp['file'], bp['line'], bp['condition'], bp['ignore_count'])
+            with retry():
+                bp_id = lldb.set_breakpoint(bp['file'], bp['line'], bp['condition'], bp['ignore_count'])
             if not bp['enabled']:
-                lldb.disable_breakpoint(bp_id)
+                with retry():
+                    lldb.disable_breakpoint(bp_id)
 
     def _disable_breakpoint(self, lldb, bp):
-        breakpoints = lldb.get_breakpoints()
+        with retry():
+            breakpoints = lldb.get_breakpoints()
         for lldb_bp in breakpoints:
             if lldb_bp['file'] == bp['file'] and lldb_bp['line'] == bp['line']:
-                lldb.disable_breakpoint(lldb_bp['id'])
+                with retry():
+                    lldb.disable_breakpoint(lldb_bp['id'])
         self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def _enable_breakpoint(self, lldb, bp):
-        breakpoints = lldb.get_breakpoints()
+        with retry():
+            breakpoints = lldb.get_breakpoints()
         for lldb_bp in breakpoints:
             if lldb_bp['file'] == bp['file'] and lldb_bp['line'] == bp['line']:
-                lldb.enable_breakpoint(lldb_bp['id'])
+                with retry():
+                    lldb.enable_breakpoint(lldb_bp['id'])
         self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def _create_breakpoint(self, lldb, file, line):
-        lldb.set_breakpoint(file, line, None, 0)
+        with retry():
+            lldb.set_breakpoint(file, line, None, 0)
         self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def _remove_breakpoint(self, lldb, bp):
-        breakpoints = lldb.get_breakpoints()
+        with retry():
+            breakpoints = lldb.get_breakpoints()
         for lldb_bp in breakpoints:
             if lldb_bp['file'] == bp['file'] and lldb_bp['line'] == bp['line']:
-                lldb.delete_breakpoint(lldb_bp['id'])
+                with retry():
+                    lldb.delete_breakpoint(lldb_bp['id'])
         self.save_breakpoints(self.view.window(), lldb=lldb)
 
     def toggle_breakpoint(self, lldb):
@@ -243,7 +319,7 @@ class LLDBBreakPointHighlighter(sublime_plugin.EventListener):
             return
         update_markers(view)
 
-def update_markers(view):
+def update_breakpoint_marker(view):
     breakpoints = view.window().project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
     enabled_markers = []
     disabled_markers = []
@@ -256,3 +332,35 @@ def update_markers(view):
                 disabled_markers.append(location)
     view.add_regions("breakpoint_enabled", enabled_markers, "breakpoint_enabled", "Packages/SublimeAnarchy/images/breakpoint_enabled.png", sublime.HIDDEN)
     view.add_regions("breakpoint_disabled", disabled_markers, "breakpoint_disabled", "Packages/SublimeAnarchy/images/breakpoint_disabled.png", sublime.HIDDEN)
+
+def update_run_marker(window, lldb=None):
+    if not lldb:
+        for view in window.views():
+            view.erase_regions("run_pointer")
+        return
+
+    with retry():
+        try:
+            bt = lldb.get_backtrace_for_selected_thread()
+            for frame in bt:
+                if frame['file'] and frame['line'] != 0:
+                    for view in window.views():
+                        if view.file_name() == frame['file']:
+                            location = view.line(view.text_point(frame['line'] - 1, 0))
+                            view.add_regions("run_pointer", [location], "entity.name.class", "Packages/SublimeAnarchy/images/stop_point.png", sublime.DRAW_NO_FILL)
+        except xmlrpc.client.Fault:
+            for view in window.views():
+                view.erase_regions("run_pointer")
+
+def update_markers(view):
+    update_breakpoint_marker(view)
+    
+    lldb = debuggers.get(view.window().id(), None)
+    update_run_marker(view.window(), lldb=lldb)
+    if lldb:
+        with retry():
+            try:
+                status = lldb.get_status()
+                view.set_status('lldb', 'LLDB: ' + status)
+            except xmlrpc.client.Fault:
+                view.erase_status('lldb')
