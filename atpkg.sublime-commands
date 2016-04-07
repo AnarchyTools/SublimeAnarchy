@@ -33,5 +33,10 @@
 		"args": {
 			"tool": "nop"
 		}
+	},
+	{
+		"caption": "AnarchyTools: Show Doc",
+		"command": "showdoc",
+		"args": { }
 	}
 ]
