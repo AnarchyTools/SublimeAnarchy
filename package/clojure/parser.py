@@ -138,7 +138,10 @@ class ClojureParse(object):
 
     def p_vector(self, p):
         'vector : LBRACKET sexprs RBRACKET'
-        p[0] = [p[2]]
+        if not isinstance(p[2], list):
+            p[0] = [p[2]]
+        else:
+            p[0] = p[2]
 
     def p_empty_vector(self, p):
         'vector : LBRACKET RBRACKET'
