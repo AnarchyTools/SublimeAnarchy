@@ -1,0 +1,24 @@
+%YAML 1.2
+---
+name: AnarchyTools LLDB Stack
+scope: lldb.console
+hidden: true
+
+contexts:
+  main:
+    - match: (Thread [0-9]*:)
+      scope: string
+
+    - match: ([0-9]+)\s+([a-zA-Z0-9._-]+)\s+([^:]+):([0-9]+)
+      captures:
+        1: constant.numeric
+        2: entity.name.class
+        3: entity.name.function
+        4: constant.numeric
+
+    - match: ([0-9]+)\s+([a-zA-Z0-9._-]+)\s+(.+)\s+(\+\s+[0-9]+)
+      captures:
+        1: constant.numeric
+        2: support.class
+        3: comment
+        4: comment

@@ -18,6 +18,9 @@ from .package import atpkgTools
 from .package.atpkg.atpkg_package import Package
 
 debuggers = {} # key = window.id, value lldb proxy
+output_callbacks = {} # key = window.id, value list of callback funcs
+status_callbacks = {} # key = window.id, value list of callback funcs
+
 debug_status = {}
 
 def plugin_loaded():
@@ -38,6 +41,54 @@ def retry():
             continue
         break
 
+# lldb query functions
+def lldb_update_status(window):
+    lldb = debuggers[window.id()]
+    with retry():
+        try:
+            status = lldb.get_status()
+        except xmlrpc.client.Fault:
+            status = None
+    if status != debug_status[window.id()]:
+        print("state change", debug_status[window.id()], '->', status)
+        debug_status[window.id()] = status
+        for callback in status_callbacks[window.id()]:
+            try:
+                callback(window, status)
+            except Exception as e:
+                print('Exception', e)
+
+def lldb_update_console(window):
+    lldb = debuggers[window.id()]
+    with retry():
+        stdout_buffer = lldb.get_stdout()
+    if len(stdout_buffer) > 0:
+        for callback in output_callbacks[window.id()]:
+            try:
+                callback(window, stdout_buffer)
+            except Exception:
+                pass
+
+
+# default callbacks for query functions
+def main_output_callback(window, output_buffer):
+    print("STDOUT:", output_buffer)
+
+def main_status_callback(window, status):
+    if not status:
+        for view in window.views():
+            view.erase_status('lldb')
+        return
+
+    lldb = debuggers[window.id()]
+    for view in window.views():
+        view.set_status('lldb', 'LLDB: ' + status)
+    if status.startswith('stopped') or status.startswith('crashed'):
+        update_run_marker(window, lldb=lldb)
+    if status.startswith('exited'):
+        lldb.shutdown_server()
+
+
 def debugger_thread(p, port, window):
     sleep(0.5)
 
@@ -54,13 +105,15 @@ def debugger_thread(p, port, window):
             project_settings.get('working_dir', project_path).replace('${project_path}', project_path)
         )
     debuggers[window.id()] = lldb
+    status_callbacks[window.id()] = [ main_status_callback ]
+    output_callbacks[window.id()] = [ main_output_callback ]
 
     # load saved breakpoints
     atlldb.load_breakpoints(window, lldb)
 
     # start the app
     status = "unknown"
-    while status != "stopped,signal":
+    while status not in ["stopped,signal", "stopped,breakpoint"]:
         with retry():
             status = lldb.get_status()
         sleep(0.5)
@@ -73,20 +126,8 @@ def debugger_thread(p, port, window):
     try:
         while True:
             sleep(1)
-            with retry():
-                status = lldb.get_status()
-            if debug_status[window.id()] != status:
-                debug_status[window.id()] = status
-                for view in window.views():
-                    view.set_status('lldb', 'LLDB: ' + status)
-                if status.startswith('stopped') or status.startswith('crashed'):
-                    update_run_marker(window, lldb=lldb)
-                if status.startswith('exited'):
-                    lldb.shutdown_server()
-            with retry():
-                stdout_buffer = lldb.get_stdout()
-            if len(stdout_buffer) > 0:
-                print("STDOUT:", stdout_buffer)
+            lldb_update_status(window)
+            lldb_update_console(window)
     except Exception as e:
         print("exception", e)
 
@@ -95,10 +136,17 @@ def debugger_thread(p, port, window):
         del debuggers[window.id()]
     if window.id() in debug_status:
         del debug_status[window.id()]
+    if window.id() in status_callbacks:
+        del status_callbacks[window.id()]
+    if window.id() in output_callbacks:
+        del output_callbacks[window.id()]
+
     for view in window.views():
         view.erase_status('lldb')
     update_run_marker(view.window())
-    p.wait()
+    view.window().run_command('atdebug_console', { "show": False })
+    if p:
+        p.wait()
 
 class atdebug(sublime_plugin.WindowCommand):
 
@@ -106,9 +154,11 @@ class atdebug(sublime_plugin.WindowCommand):
         self._stop_debugger()
         path = os.path.dirname(self.window.project_file_name())
         port = random.randint(12000,13000)
+        #port = 12345
         lldb_server_executable = os.path.join(sublime.packages_path(), "SublimeAnarchy", "package", "lldb_bridge", "lldb_server.py")
         args = ['/usr/bin/python', lldb_server_executable, settings.get('lldb_python_path'), str(port)]
         p = Popen(args, cwd=path)
+        #p = None
         threading.Thread(target=debugger_thread, name='debugger_thread', args=(p, port, self.window)).start()
 
     def _stop_debugger(self):
@@ -242,7 +292,6 @@ class atlldb(sublime_plugin.TextCommand):
                 found.append(bp)
 
         if len(found) == 0:
-            print("new")
             breakpoints.append({
                 "file": self.view.file_name(),
                 "line": row,
@@ -358,9 +407,4 @@ def update_markers(view):
     lldb = debuggers.get(view.window().id(), None)
     update_run_marker(view.window(), lldb=lldb)
     if lldb:
-        with retry():
-            try:
-                status = lldb.get_status()
-                view.set_status('lldb', 'LLDB: ' + status)
-            except xmlrpc.client.Fault:
-                view.erase_status('lldb')
+        lldb_update_status(view.window())

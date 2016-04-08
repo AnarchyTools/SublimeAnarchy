@@ -68,5 +68,19 @@
 		"args": {
 			"enable_disable_breakpoint": true
 		}
+	},
+	{
+		"caption": "AnarchyDebug: Show LLDB console",
+		"command": "atdebug_console",
+		"args": {
+			"show": true
+		}
+	},
+	{
+		"caption": "AnarchyDebug: Hide LLDB console",
+		"command": "atdebug_console",
+		"args": {
+			"show": false
+		}
 	}
 ]

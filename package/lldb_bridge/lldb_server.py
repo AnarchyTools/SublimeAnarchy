@@ -224,7 +224,6 @@ def push_stdin(data):
 # status and backtraces
 def get_status():
     global status
-    print(status)
     return status
 
 def get_backtrace():
@@ -237,11 +236,16 @@ def get_backtrace():
         bt_frames = []
         for frame in thread.frames:
             line = frame.GetLineEntry()
+            module = frame.GetModule()
+            desc = SBStream()
+            module.GetDescription(desc)
             bt_frames.append({
                 "function": frame.GetFunctionName(),
                 "file": line.file.fullpath,
                 "line": line.GetLine(),
                 "column": line.GetColumn(),
+                "module": module.file.basename,
+                "symbol": desc.GetData()
             })
         bt[str(thread.GetThreadID())] = bt_frames
     return bt
@@ -254,11 +258,16 @@ def get_backtrace_for_selected_thread():
     bt_frames = []
     for frame in thread.frames:
         line = frame.GetLineEntry()
+        module = frame.GetModule()
+        desc = SBStream()
+        module.GetDescription(desc)
         bt_frames.append({
             "function": frame.GetFunctionName(),
             "file": line.file.fullpath,
             "line": line.GetLine(),
             "column": line.GetColumn(),
+            "module": module.file.basename,
+            "symbol": desc.GetData()
         })
     return bt_frames
 
@@ -426,7 +435,7 @@ def enable_breakpoints():
 # XMLRPC server
 #
 
-server = SimpleXMLRPCServer(("localhost", port), logRequests=True, allow_none=True)
+server = SimpleXMLRPCServer(("localhost", port), logRequests=False, allow_none=True)
 server.register_introspection_functions()
 
 # kill server
