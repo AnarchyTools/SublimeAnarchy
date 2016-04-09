@@ -1,6 +1,16 @@
 {
+	// Path to sourcekitd.framework/sourcekitd to use auto completion and doc extraction
 	"sourcekit_path": "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd",
+
+	// Path to the SDK that SourceKit should use
 	"sourcekit_sdk": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk",
+
+	// Path to the LLDB.framework python resources
 	"lldb_python_path": "/Library/Developer/Toolchains/swift-latest.xctoolchain/System/Library/PrivateFrameworks/LLDB.framework/Resources/Python",
-	"atbuild_path": "/usr/local/bin/atbuild"
+	
+	// Path to the atbuild binary
+	"atbuild_path": "/usr/local/bin/atbuild",
+
+	// Automatically show lldb console when debugger starts?
+	"auto_show_lldb_console": true
 }

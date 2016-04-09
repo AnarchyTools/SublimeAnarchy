@@ -35,6 +35,32 @@ lldb_handle = SBDebugger.Create()
 lldb_handle.SetAsync(True)
 
 # Internal
+def _get_stop_reason(thread):
+    reason = thread.GetStopReason()
+    if reason == eStopReasonBreakpoint:
+        return "breakpoint"
+    elif reason == eStopReasonWatchpoint:
+        return "watchpoint"
+    elif reason == eStopReasonSignal:
+        return "signal"
+    elif reason == eStopReasonException:
+        return "exception"
+    elif reason == eStopReasonInvalid:
+        return "invalid"
+    elif reason == eStopReasonNone:
+        return "none"
+    elif reason == eStopReasonTrace:
+        return "trace"
+    elif reason == eStopReasonExec:
+        return "exec"
+    elif reason == eStopReasonPlanComplete:
+        return "plan_complete"
+    elif reason == eStopReasonThreadExiting:
+        return "thread_exit"
+    elif reason == eStopReasonInstrumentation:
+        return "instrumentation"
+    return "running"
+
 def _stop_event():
     global status
     event = SBEvent()
@@ -49,30 +75,10 @@ def _stop_event():
             elif state == eStateRunning:
                 status = "running"
             elif state == eStateStopped:
-                s = ["stopped"]
-
-                breakpoint = watchpoint = signal = exception = False
+                s = set()
                 for thread in process.threads:
-                    reason = thread.GetStopReason()
-                    if reason == eStopReasonBreakpoint:
-                        breakpoint = True
-                    elif reason == eStopReasonWatchpoint:
-                        watchpoint = True
-                    elif reason == eStopReasonSignal:
-                        signal = True
-                    elif reason == eStopReasonException:
-                        exception = True
-                
-                if breakpoint:
-                    s.append('breakpoint')
-                if watchpoint:
-                    s.append('watchpoint')
-                if signal:
-                    s.append('signal')
-                if exception:
-                    s.append('exception')
-
-                status = ",".join(s)
+                    s.add(_get_stop_reason(thread))
+                status = "stopped," + (",".join(list(s)))
             elif state == eStateStepping:
                 status = "stepping"
             elif state == eStateCrashed:
@@ -193,14 +199,7 @@ def selected_thread():
         raise Exception("No process to query")
 
     thread = process.GetSelectedThread()
-    id = thread.GetThreadID()
-    name = thread.GetName()
-    frames = thread.GetNumFrames()
-    return {
-        "id": id,
-        "name": name,
-        "num_frames": frames
-    }
+    return _get_thread(thread)
 
 # input/output to target
 def get_stdout():
@@ -226,28 +225,57 @@ def get_status():
     global status
     return status
 
+def _get_backtrace(thread):
+    bt_frames = []
+    for frame in thread.frames:
+
+        addr = frame.GetPCAddress()
+        load_addr = addr.GetLoadAddress(target)
+        function = frame.GetFunction()
+        mod_name = frame.GetModule().GetFileSpec().GetFilename()
+
+        if function:
+            func_name = frame.GetFunctionName()
+            file_name = frame.GetLineEntry().GetFileSpec().fullpath
+            line_num = frame.GetLineEntry().GetLine()
+            col = frame.GetLineEntry().GetColumn()
+            inlined = frame.IsInlined()
+            args = {}
+            for variable in frame.get_arguments():
+                args[variable.GetName()] = variable.GetValue()
+            bt_frames.append({
+                "address": str(load_addr),  # number to big for rpc -.-
+                "module": mod_name,
+                "function": func_name,
+                "file": file_name,
+                "line": line_num,
+                "column": col,
+                "inlined": inlined,
+                "arguments": args
+            })
+        else:
+            symbol = frame.GetSymbol()
+            file_addr = addr.GetFileAddress()
+            start_addr = symbol.GetStartAddress().GetFileAddress()
+            symbol_name = symbol.GetName()
+            symbol_offset = file_addr - start_addr
+            bt_frames.append({
+                "address": str(load_addr),  # number to big for rpc -.-
+                "module": mod_name,
+                "symbol": symbol_name,
+                "offset": str(symbol_offset),  # number to big for rpc -.-
+            })
+    return bt_frames
+
+
 def get_backtrace():
     global process
     if not process:
         raise Exception("No process to get traces of")
     bt = {}
     for thread in process.threads:
-
-        bt_frames = []
-        for frame in thread.frames:
-            line = frame.GetLineEntry()
-            module = frame.GetModule()
-            desc = SBStream()
-            module.GetDescription(desc)
-            bt_frames.append({
-                "function": frame.GetFunctionName(),
-                "file": line.file.fullpath,
-                "line": line.GetLine(),
-                "column": line.GetColumn(),
-                "module": module.file.basename,
-                "symbol": desc.GetData()
-            })
-        bt[str(thread.GetThreadID())] = bt_frames
+        bt[str(thread.GetThreadID())] = _get_thread(thread)        
+        bt[str(thread.GetThreadID())]['bt'] = _get_backtrace(thread)
     return bt
 
 def get_backtrace_for_selected_thread():
@@ -255,21 +283,22 @@ def get_backtrace_for_selected_thread():
     if not process:
         raise Exception("No process to get traces of")
     thread = process.GetSelectedThread()
-    bt_frames = []
-    for frame in thread.frames:
-        line = frame.GetLineEntry()
-        module = frame.GetModule()
-        desc = SBStream()
-        module.GetDescription(desc)
-        bt_frames.append({
-            "function": frame.GetFunctionName(),
-            "file": line.file.fullpath,
-            "line": line.GetLine(),
-            "column": line.GetColumn(),
-            "module": module.file.basename,
-            "symbol": desc.GetData()
-        })
-    return bt_frames
+    bt = _get_thread(thread)
+    bt['bt'] = _get_backtrace(thread)
+    return bt
+
+def _get_thread(thread):
+    selected_thread = process.GetSelectedThread()
+    selected = (thread.id == selected_thread.id)
+    return {
+        "id": thread.id,
+        "index": thread.idx,
+        "name": thread.name,
+        "queue": thread.queue,
+        "stop_reason": _get_stop_reason(thread),
+        "num_frames": thread.GetNumFrames(),
+        "selected": selected
+    }
 
 def get_threads():
     global process
@@ -278,14 +307,7 @@ def get_threads():
 
     threads = []
     for thread in process.threads:
-        id = thread.GetThreadID()
-        name = thread.GetName()
-        frames = thread.GetNumFrames()
-        threads.append({
-            "id": id,
-            "name": name,
-            "num_frames": frames
-        })
+        threads.append(_get_thread(thread))
     return threads
 
 def get_arguments(thread_id, frame_index):
@@ -297,7 +319,7 @@ def get_arguments(thread_id, frame_index):
     result = {}
 
     for variable in frame.get_arguments():
-        result[variable.GetName()] = variable.GetValue()
+        result[variable.GetName()] = variable.GetSummary()
     return result
 
 def get_local_variables(thread_id, frame_index):
@@ -309,10 +331,10 @@ def get_local_variables(thread_id, frame_index):
     result = {}
 
     for variable in frame.get_locals():
-        result[variable.GetName()] = variable.GetValue()
+        result[variable.GetName()] = variable.GetSummary()
 
     for variable in frame.get_statics():
-        result[variable.GetName()] = variable.GetValue()
+        result[variable.GetName()] = variable.GetSummary()
     return result
 
 def get_all_variables(thread_id, frame_index):
@@ -324,7 +346,7 @@ def get_all_variables(thread_id, frame_index):
     result = {}
 
     for variable in frame.get_all_variables():
-        result[variable.GetName()] = variable.GetValue()
+        result[variable.GetName()] = variable.GetSummary()
     return result
 
 
@@ -332,8 +354,12 @@ def get_all_variables(thread_id, frame_index):
 def execute_lldb_command(command):
     interpreter = lldb_handle.GetCommandInterpreter()
     res = SBCommandReturnObject()
-    HandleCommand(command, res)
-    return res.Succeeded()
+    interpreter.HandleCommand(command, res)
+    return {
+        "succeeded" :res.Succeeded(),
+        "output": res.GetOutput(),
+        "error": res.GetError()
+    }
 
 # breakpoints
 def get_breakpoints():

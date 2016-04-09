@@ -14,7 +14,18 @@ contexts:
       captures:
         1: comment
         2: keyword
+
+    - match: (LLDB OK:)\s+(.*)
+      captures:
+        1: comment
+        2: support.function
+
+    - match: (LLDB ERR:)\s+(.*)
+      captures:
+        1: comment
+        2: variable.parameter
+
     - match: (\(lldb\))\s+(.*)
       captures:
-        1: support.class
+        1: keyword
         2: entity.name.function

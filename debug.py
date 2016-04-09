@@ -18,8 +18,8 @@ from .package import atpkgTools
 from .package.atpkg.atpkg_package import Package
 
 debuggers = {} # key = window.id, value lldb proxy
-output_callbacks = {} # key = window.id, value list of callback funcs
-status_callbacks = {} # key = window.id, value list of callback funcs
+output_callbacks = {} # key = window.id, value set of callback funcs
+status_callbacks = {} # key = window.id, value set of callback funcs
 
 debug_status = {}
 
@@ -49,6 +49,9 @@ def lldb_update_status(window):
             status = lldb.get_status()
         except xmlrpc.client.Fault:
             status = None
+    if window.id() not in debug_status:
+        debug_status[window.id()] = "unknown"
+        
     if status != debug_status[window.id()]:
         print("state change", debug_status[window.id()], '->', status)
         debug_status[window.id()] = status
@@ -62,7 +65,7 @@ def lldb_update_console(window):
     lldb = debuggers[window.id()]
     with retry():
         stdout_buffer = lldb.get_stdout()
-    if len(stdout_buffer) > 0:
+    if stdout_buffer is not None and len(stdout_buffer) > 0:
         for callback in output_callbacks[window.id()]:
             try:
                 callback(window, stdout_buffer)
@@ -72,7 +75,7 @@ def lldb_update_console(window):
 
 # default callbacks for query functions
 def main_output_callback(window, output_buffer):
-    print("STDOUT:", output_buffer)
+    pass
 
 def main_status_callback(window, status):
     if not status:
@@ -83,13 +86,14 @@ def main_status_callback(window, status):
     lldb = debuggers[window.id()]
     for view in window.views():
         view.set_status('lldb', 'LLDB: ' + status)
-    if status.startswith('stopped') or status.startswith('crashed'):
+    if status.startswith('stopped') or status.startswith('crashed') or status.startswith('plan_complete'):
         update_run_marker(window, lldb=lldb)
     if status.startswith('exited'):
         lldb.shutdown_server()
 
 
 def debugger_thread(p, port, window):
+    global settings
     sleep(0.5)
 
     project_settings = window.project_data().get('settings', {}).get('SublimeAnarchy', {}).get('debug', {})
@@ -105,8 +109,10 @@ def debugger_thread(p, port, window):
             project_settings.get('working_dir', project_path).replace('${project_path}', project_path)
         )
     debuggers[window.id()] = lldb
-    status_callbacks[window.id()] = [ main_status_callback ]
-    output_callbacks[window.id()] = [ main_output_callback ]
+    status_callbacks[window.id()] = set()
+    status_callbacks[window.id()].add(main_status_callback)
+    output_callbacks[window.id()] = set()
+    output_callbacks[window.id()].add(main_output_callback)
 
     # load saved breakpoints
     atlldb.load_breakpoints(window, lldb)
@@ -117,6 +123,9 @@ def debugger_thread(p, port, window):
         with retry():
             status = lldb.get_status()
         sleep(0.5)
+
+    if settings.get('auto_show_lldb_console', True):
+        window.run_command('atdebug_console', { "show": True })
 
     with retry():
         lldb.start()
@@ -144,7 +153,7 @@ def debugger_thread(p, port, window):
     for view in window.views():
         view.erase_status('lldb')
     update_run_marker(view.window())
-    view.window().run_command('atdebug_console', { "show": False })
+    window.run_command('atdebug_console', { "show": False })
     if p:
         p.wait()
 
@@ -391,12 +400,32 @@ def update_run_marker(window, lldb=None):
     with retry():
         try:
             bt = lldb.get_backtrace_for_selected_thread()
-            for frame in bt:
-                if frame['file'] and frame['line'] != 0:
+            if 'bt' not in bt:
+                for view in window.views():
+                    view.erase_regions("run_pointer")
+                return                
+            for frame in bt['bt']:
+                if 'file' in frame and frame['line'] != 0:
+                    found = False
                     for view in window.views():
                         if view.file_name() == frame['file']:
                             location = view.line(view.text_point(frame['line'] - 1, 0))
                             view.add_regions("run_pointer", [location], "entity.name.class", "Packages/SublimeAnarchy/images/stop_point.png", sublime.DRAW_NO_FILL)
+                            if not view.visible_region().contains(location):
+                                view.show_at_center(location)
+                            if window.active_group() == 0:
+                                window.focus_view(view)
+                            found = True
+                    if not found:
+                        grp = window.active_group()
+                        window.focus_group(0)
+                        view = window.open_file(frame['file'] + ":" + str(frame['line']), sublime.ENCODED_POSITION)
+                        window.focus_group(grp)
+                        location = view.line(view.text_point(frame['line'] - 1, 0))
+                        view.add_regions("run_pointer", [location], "entity.name.class", "Packages/SublimeAnarchy/images/stop_point.png", sublime.DRAW_NO_FILL)
+                        if not view.visible_region().contains(location):
+                            view.show_at_center(location)
+                    break
         except xmlrpc.client.Fault:
             for view in window.views():
                 view.erase_regions("run_pointer")
