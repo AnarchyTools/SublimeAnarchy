@@ -393,6 +393,9 @@ contexts:
   # comments
   comment:
     - meta_scope: comment
+    - match: (/\*)
+      scope: comment
+      push: comment
     - match: (\*/)
       scope: comment
       pop: true
