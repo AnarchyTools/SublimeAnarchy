@@ -77,7 +77,7 @@ contexts:
       captures:
         1: punctuation
         2: keyword
-    - match: (:)(dependencies|sources|compile-options|overlays|bootstrap-only|llbuildyaml|swiftc-path|link-sdk|link-with|publish-product|xctestify|xctest-strict|modulemap)\b
+    - match: (:)(dependencies|sources|compile-options|link-options|overlays|bootstrap-only|llbuildyaml|swiftc-path|link-sdk|link-with|publish-product|xctestify|xctest-strict|modulemap)\b
       captures:
         1: punctuation
         2: keyword
