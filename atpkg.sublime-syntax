@@ -6,7 +6,7 @@ scope: source.atpkg
 
 contexts:
   main:
-    - match: (;;)(.*)\n
+    - match: (;;)(.*)$
       scope: comment
 
     - match: (\()(\s*package)
@@ -43,23 +43,44 @@ contexts:
     - match: \b(true|false)\b
       scope: support.constant
 
+    # invalid parentheses
+    - match: (\])
+      scope: invalid
+    - match: (\})
+      scope: invalid
+    - match: (\))
+      scope: invalid
+
+    # invalid characters
     - match: (,|;|_|\\|\||/)
       scope: invalid
 
   paren:
-    - include: main
+    - match: (\])
+      scope: invalid
+    - match: (\})
+      scope: invalid
     - match: (\))
       pop: true
+    - include: main
 
   bracket:
-    - include: main
+    - match: (\))
+      scope: invalid
+    - match: (\})
+      scope: invalid
     - match: (\])
       pop: true
+    - include: main
 
   brace:
-    - include: main
+    - match: (\])
+      scope: invalid
+    - match: (\))
+      scope: invalid
     - match: (\})
       pop: true
+    - include: main
 
   string:
     - meta_scope: string.quoted.double
