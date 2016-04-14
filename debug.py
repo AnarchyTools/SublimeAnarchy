@@ -39,6 +39,9 @@ def retry():
         except CannotSendRequest:
             sleep(0.2)
             continue
+        except http.client.ResponseNotReady:
+            sleep(0.2)
+            continue
         break
 
 # lldb query functions
