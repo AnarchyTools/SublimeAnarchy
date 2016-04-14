@@ -3,7 +3,7 @@ import sublime
 import json
 import random
 import xmlrpc.client
-from http.client import CannotSendRequest
+from http.client import CannotSendRequest, ResponseNotReady
 import threading
 from contextlib import contextmanager
 
@@ -39,7 +39,7 @@ def retry():
         except CannotSendRequest:
             sleep(0.2)
             continue
-        except http.client.ResponseNotReady:
+        except ResponseNotReady:
             sleep(0.2)
             continue
         break
