@@ -8,14 +8,17 @@ def plugin_loaded():
     global settings
     global api
     settings = sublime.load_settings('SublimeAnarchy.sublime-settings')
-    api = SK2PAPI(settings)
+    if settings.get('use_sourcekit', False):
+        api = SK2PAPI(settings)
 
 class Autocomplete(sublime_plugin.EventListener):
 
     def enable(self, view):
+        global settings
         if not view: return False
         if not view.file_name(): return False
         if not view.file_name().endswith("swift"): return False
+        if not settings.get('use_sourcekit', False): return False
         return True
 
     def on_query_completions(self, view, prefix, locations):

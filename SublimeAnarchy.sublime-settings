@@ -1,4 +1,7 @@
 {
+	// enable sourcekit autocompletion and documentation gathering
+	"use_sourcekit": true,
+	
 	// Path to sourcekitd.framework/sourcekitd to use auto completion and doc extraction
 	"sourcekit_path": "/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd",
 

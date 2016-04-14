@@ -9,7 +9,8 @@ def plugin_loaded():
     global settings
     global api
     settings = sublime.load_settings('SublimeAnarchy.sublime-settings')
-    api = SK2PAPI(settings)
+    if settings.get('use_sourcekit', False):
+        api = SK2PAPI(settings)
 
 class ShowdocCommand(sublime_plugin.TextCommand):
 
@@ -53,3 +54,7 @@ class ShowdocCommand(sublime_plugin.TextCommand):
     }
     </style>""" + processedDoc + ""
         view.show_popup(processedDoc, on_navigate=print)
+
+    def is_enabled(self, *args, **kwargs):
+        global settings
+        return settings.get('use_sourcekit', False)
