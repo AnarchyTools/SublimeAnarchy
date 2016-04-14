@@ -61,6 +61,38 @@ def _get_stop_reason(thread):
         return "instrumentation"
     return "running"
 
+def _get_status(process):
+    state = process.GetState()
+    if state == eStateInvalid:
+        return "invalid"
+    elif state == eStateUnloaded:
+        return "unloaded"
+    elif state == eStateConnected:
+        return "connected"
+    elif state == eStateAttaching:
+        return "attaching"
+    elif state == eStateDetached:
+        return "detached"
+    elif status == eStateSuspended:
+        return "suspended"
+    elif state == eStateLaunching:
+        return "launching"
+    elif state == eStateRunning:
+        return "running"
+    elif state == eStateStopped:
+        s = set()
+        for thread in process.threads:
+            s.add(_get_stop_reason(thread))
+        return "stopped," + (",".join(list(s)))
+    elif state == eStateStepping:
+        return "stepping"
+    elif state == eStateCrashed:
+        return "crashed"
+    elif state == eStateExited:
+        return "exited"
+    else:
+        return "unknown " + str(state)
+
 def _stop_event():
     global status
     event = SBEvent()
@@ -69,24 +101,7 @@ def _stop_event():
         if not stop_event_listener:
             return
         if stop_event_listener.WaitForEventForBroadcasterWithType(1, broadcaster, SBProcess.eBroadcastBitStateChanged, event):
-            state = process.GetState()
-            if state == eStateLaunching:
-                status = "launching"
-            elif state == eStateRunning:
-                status = "running"
-            elif state == eStateStopped:
-                s = set()
-                for thread in process.threads:
-                    s.add(_get_stop_reason(thread))
-                status = "stopped," + (",".join(list(s)))
-            elif state == eStateStepping:
-                status = "stepping"
-            elif state == eStateCrashed:
-                status = "crashed"
-            elif state == eStateExited:
-                status = "exited"
-            else:
-                status = "unknown"
+            status = _get_status(process)
 
 def _output_event():
     global stderr_buffer, stdout_buffer
@@ -116,14 +131,14 @@ def shutdown_server():
 
 # load executable
 def prepare(executable, params, environment, path, work_dir):
-    global target, process, stop_event_listener, out_event_listener
+    global target, process, stop_event_listener, out_event_listener, status
     if not target:
         target = lldb_handle.CreateTargetWithFileAndTargetTriple(executable, LLDB_ARCH_DEFAULT)
     if not target:
         raise Exception("Could not create target")       
 
     error = SBError()
-    process = target.Launch(lldb_handle.GetListener(), params, environment, None, None, None, work_dir, 0, True, error)
+    process = target.Launch(lldb_handle.GetListener(), params, environment, None, None, None, work_dir, eLaunchFlagStopAtEntry, True, error)
     if not error.Success():
         raise Exception("Could not load target: " + str(error))
 
@@ -139,6 +154,8 @@ def prepare(executable, params, environment, path, work_dir):
 
     threading.Thread(target=_stop_event, name='stop_event_listener', args=()).start()
     threading.Thread(target=_output_event, name='output_event_listener', args=()).start()
+    
+    status = _get_status(process)
 
 # running, interrupting and stepping
 def start():
@@ -291,7 +308,7 @@ def _get_thread(thread):
     selected_thread = process.GetSelectedThread()
     selected = (thread.id == selected_thread.id)
     return {
-        "id": thread.id,
+        "id": str(thread.id),
         "index": thread.idx,
         "name": thread.name,
         "queue": thread.queue,
@@ -314,7 +331,7 @@ def get_arguments(thread_id, frame_index):
     global process
     if not process:
         raise Exception("No process to query")
-    thread = process.GetThreadByID(thread_id)
+    thread = process.GetThreadByID(int(thread_id))
     frame = thread.frame[frame_index]
     result = {}
 
@@ -326,27 +343,27 @@ def get_local_variables(thread_id, frame_index):
     global process
     if not process:
         raise Exception("No process to query")
-    thread = process.GetThreadByID(thread_id)
+    thread = process.GetThreadByID(int(thread_id))
     frame = thread.frame[frame_index]
     result = {}
 
     for variable in frame.get_locals():
-        result[variable.GetName()] = variable.GetSummary()
+        result[variable.GetName()] = str(variable.GetSummary())
 
     for variable in frame.get_statics():
-        result[variable.GetName()] = variable.GetSummary()
+        result[variable.GetName()] = str(variable.GetSummary())
     return result
 
 def get_all_variables(thread_id, frame_index):
     global process
     if not process:
         raise Exception("No process to query")
-    thread = process.GetThreadByID(thread_id)
+    thread = process.GetThreadByID(int(thread_id))
     frame = thread.frame[frame_index]
     result = {}
 
     for variable in frame.get_all_variables():
-        result[variable.GetName()] = variable.GetSummary()
+        result[variable.GetName()] = str(variable.GetSummary())
     return result
 
 

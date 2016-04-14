@@ -116,7 +116,8 @@ def update_console(window, buf):
     if not view:
         return
 
-    view.run_command("update_lldb_console", { "data": "STDOUT: " + buf })
+    buf = "\n".join(["STDOUT: " + line for line in buf.split("\n")])
+    view.run_command("update_lldb_console", { "data": buf + "\n" })
 
 
 class updateLldbConsole(sublime_plugin.TextCommand):

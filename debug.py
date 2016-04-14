@@ -49,6 +49,8 @@ def lldb_update_status(window):
             status = lldb.get_status()
         except xmlrpc.client.Fault:
             status = None
+        except ConnectionRefusedError:
+            status = "LLDB exited"
     if window.id() not in debug_status:
         debug_status[window.id()] = "unknown"
         
@@ -139,7 +141,15 @@ def debugger_thread(p, port, window):
             lldb_update_console(window)
     except Exception as e:
         print("exception", e)
+    except ConnectionRefusedError:
+        print("LLDB Debug server down")
 
+    _kill_lldb(window)
+    if p:
+        p.wait()
+
+
+def _kill_lldb(window):
     # so the debug server exited or crashed
     if window.id() in debuggers:
         del debuggers[window.id()]
@@ -154,8 +164,6 @@ def debugger_thread(p, port, window):
         view.erase_status('lldb')
     update_run_marker(view.window())
     window.run_command('atdebug_console', { "show": False })
-    if p:
-        p.wait()
 
 class atdebug(sublime_plugin.WindowCommand):
 
@@ -174,7 +182,10 @@ class atdebug(sublime_plugin.WindowCommand):
         lldb = debuggers.get(self.window.id(), None)
         if lldb:
             with retry():
-                lldb.shutdown_server()
+                try:
+                    lldb.shutdown_server()
+                except ConnectionRefusedError:
+                    _kill_lldb(self.window)
                 
     def run(self, *args, **kwargs):
         if kwargs.get('start', False):
