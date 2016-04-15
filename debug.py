@@ -29,7 +29,7 @@ def plugin_loaded():
 
 def plugin_unloaded():
     for key, debugger in debuggers.items():
-        debugger.shutdown_server()        
+        debugger.shutdown_server()
 
 @contextmanager
 def retry():
@@ -56,7 +56,7 @@ def lldb_update_status(window):
             status = "LLDB exited"
     if window.id() not in debug_status:
         debug_status[window.id()] = "unknown"
-        
+
     if status != debug_status[window.id()]:
         print("state change", debug_status[window.id()], '->', status)
         debug_status[window.id()] = status
@@ -119,9 +119,6 @@ def debugger_thread(p, port, window):
     output_callbacks[window.id()] = set()
     output_callbacks[window.id()].add(main_output_callback)
 
-    # load saved breakpoints
-    atlldb.load_breakpoints(window, lldb)
-
     # start the app
     status = "unknown"
     while status not in ["stopped,signal", "stopped,breakpoint"]:
@@ -131,6 +128,9 @@ def debugger_thread(p, port, window):
 
     if settings.get('auto_show_lldb_console', True):
         window.run_command('atdebug_console', { "show": True })
+
+    # load saved breakpoints
+    atlldb.load_breakpoints(window, lldb)
 
     with retry():
         lldb.start()
@@ -189,7 +189,7 @@ class atdebug(sublime_plugin.WindowCommand):
                     lldb.shutdown_server()
                 except ConnectionRefusedError:
                     _kill_lldb(self.window)
-                
+
     def run(self, *args, **kwargs):
         if kwargs.get('start', False):
             self._start_debugger()
@@ -370,7 +370,7 @@ class atlldb(sublime_plugin.TextCommand):
             breakpoints = self.view.window().project_data().get('settings', {}).get('SublimeAnarchy', {}).get('breakpoints', [])
             cursor = self.view.sel()[0].begin()
             row, col = self.view.rowcol(cursor)
-    
+
             new_bps = []
             for bp in breakpoints:
                 if bp['file'] == self.view.file_name() and bp['line'] == row:
@@ -417,7 +417,7 @@ def update_run_marker(window, lldb=None):
             if 'bt' not in bt:
                 for view in window.views():
                     view.erase_regions("run_pointer")
-                return                
+                return
             for frame in bt['bt']:
                 if 'file' in frame and frame['line'] != 0:
                     found = False
@@ -446,7 +446,7 @@ def update_run_marker(window, lldb=None):
 
 def update_markers(view):
     update_breakpoint_marker(view)
-    
+
     lldb = debuggers.get(view.window().id(), None)
     update_run_marker(view.window(), lldb=lldb)
     if lldb:

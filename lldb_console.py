@@ -12,7 +12,7 @@ window_layouts = {}
 def update_stack(window, status):
     if window.id() not in debuggers:
         return
-        
+
     lldb = debuggers[window.id()]
     if not lldb:
         return
@@ -43,7 +43,7 @@ def update_stack(window, status):
         for frame in frames:
             if frame['module'] is not None and len(frame['module']) > max_len:
                 max_len = len(frame['module'])
-                
+
         frame_id = 0
         toplevel = -1
         for frame in frames:
@@ -104,7 +104,7 @@ def update_stack(window, status):
     if len(threads) > 1:
         data = buttons + threads[0] + "\n" + var_dump + "\n".join(threads[1:])
     else:
-        data = buttons + threads[0] + "\n" + var_dump        
+        data = buttons + threads[0] + "\n" + var_dump
     view.run_command("update_lldb_stack", { "data": data })
 
 def update_console(window, buf):
@@ -116,7 +116,7 @@ def update_console(window, buf):
     if not view:
         return
 
-    buf = "\n".join(["STDOUT: " + line for line in buf.split("\n")])
+    buf = "\n".join(["STDOUT: " + line for line in buf.strip().split("\n")])
     view.run_command("update_lldb_console", { "data": buf + "\n" })
 
 
@@ -131,7 +131,7 @@ class updateLldbConsole(sublime_plugin.TextCommand):
             self.view.insert(edit, self.view.size(), line)
         else:
             self.view.insert(edit, self.view.size(), data)
-            if len(data) > 0 and data[-1] != "\n":  
+            if len(data) > 0 and data[-1] != "\n":
                 self.view.insert(edit, self.view.size(), "\n(lldb) ")
             else:
                 self.view.insert(edit, self.view.size(), "(lldb) ")
@@ -157,7 +157,7 @@ class updateLldbStack(sublime_plugin.TextCommand):
         return False
 
 class atdebugConsole(sublime_plugin.WindowCommand):
-               
+
     def _show_console(self):
         window_layouts[self.window.id()] = self.window.get_layout()
         self.window.set_layout({
@@ -237,14 +237,14 @@ class LldbConsoleWatcher(sublime_plugin.EventListener):
     def on_activated(self, view):
         if not self.enable(view):
             return
-        
+
         view.sel().clear()
         view.sel().add(sublime.Region(view.size(), view.size()))
 
     def on_selection_modified_async(self, view):
         if not self.enable(view):
             return
-        
+
         if not view.window().id() in debuggers:
             return
 
@@ -279,14 +279,14 @@ class LldbStackWatcher(sublime_plugin.EventListener):
     def on_activated(self, view):
         if not self.enable(view):
             return
-        
+
         view.sel().clear()
         view.sel().add(view.text_point(1,0))
 
     def on_selection_modified_async(self, view):
         if not self.enable(view):
             return
-        
+
         if not view.window().id() in debuggers:
             return
 
