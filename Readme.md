@@ -9,12 +9,6 @@ This plugin is specifically designed to work with the [Anarchy Tools](http://ana
 - Building with `atbuild`
 - Highlighting build errors in the source files
 - Build log (terminal output) in an output panel in Sublime with output coloring and clickable file names
-- Add debugger support
-    - Setting breakpoints
-    - Running with connected stdin/out/err in output panel
-    - LLDB debug prompt
-    - Local variable display
-    - Backtraces
 
 Some features currently only work on OSX:
 
@@ -36,7 +30,6 @@ Available configuration options:
 
 - `sourcekit_path` path to `sourcekitd` (default: `/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/lib/sourcekitd.framework/sourcekitd`)
 - `sourcekit_sdk` path to the sdk SourceKit shall use (default: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk`)
-- `lldb_python_path` path to lldb python package directory to use for the debugger
 - `atbuild_path` path to the `atbuild` binary from Anarchy Tools (default: `/usr/local/bin/atbuild`)
 - `atpm_path` path to the `atpm` binary from Anarchy Tools (default: `/usr/local/bin/atpm`)
 
@@ -54,24 +47,9 @@ Example content of `Project.sublime-project`:
 			"folder_exclude_patterns": [ ".atllbuild", "bin" ],
 		}
 	]
-	"settings": {
-		"SublimeAnarchy": {
-			"debug": {
-				"executable": "${project_path}/bin/atpm",
-				"params": [
-					"info"
-				],
-				"path": [
-				],
-				"environment": [
-				],
-				"working_dir": "${project_path}"
-			}
-		}
-	}
 }
 ```
 
 Put that into your project root and use the menu entry `Project->Open Project...` to open the project (or double-click in your filesystem browser or even open with `subl <ProjectFile>` from the command line.)
 
-If the project is open just use the Command Palette to execute some Anarchy Tools commands (all prefixed with `AnarchyTools:` or `AnarchyDebug:`). To speed up rebuilding the last target you built use the shortcut `CMD-SHIFT-A` (OSX) or `CTRL-SHIFT-A` (Linux) to re-execute the last chosen task.
+If the project is open just use the Command Palette to execute some Anarchy Tools commands (all prefixed with `AnarchyTools:`). To speed up rebuilding the last target you built use the shortcut `CMD-SHIFT-A` (OSX) or `CTRL-SHIFT-A` (Linux) to re-execute the last chosen task.
