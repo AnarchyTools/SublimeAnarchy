@@ -3,6 +3,7 @@ import sublime
 from .package.sk2p import SK2PAPI
 from .package import stTextProcessing
 from .package import atpkgTools
+import threading
 
 def plugin_loaded():
     global settings
@@ -13,6 +14,9 @@ def plugin_loaded():
 
 class Autocomplete(sublime_plugin.EventListener):
 
+    def __init__(self):
+        self.recent_completions = []
+
     def enable(self, view):
         global settings
         if not view: return False
@@ -21,8 +25,7 @@ class Autocomplete(sublime_plugin.EventListener):
         if not settings.get('use_sourcekit', False): return False
         return True
 
-    def on_query_completions(self, view, prefix, locations):
-        if not self.enable(view): return []
+    def async_completions(self, view, prefix, locations):
         text = view.substr(sublime.Region(0, view.size()))
         # look up atpkg if available
         otherSourceFiles = atpkgTools.otherSourceFilesAbs(view.file_name())
@@ -38,9 +41,30 @@ class Autocomplete(sublime_plugin.EventListener):
             #append type onto the name
             name += "\t" + stTextProcessing.shortType(o["key.kind"])
             sk_completions.append((name, stPlaceholder))
-        # completions = [("example", "example"), ("example2\tfoo", "${2:placeholder}example2")]
-        print("offering completions",sk_completions)
-        return (sk_completions, 0)
+        self.recent_completions = sk_completions
+        print("Completions arrived")
+        view.run_command("hide_auto_complete")
+        view.run_command("auto_complete", {
+            'disable_auto_insert': True,
+            'api_completions_only': False,
+            'next_completion_if_showing': False,
+            'auto_complete_commit_on_tab': True,
+        })
+
+
+    def on_query_completions(self, view, prefix, locations):
+        if not self.enable(view): return []
+        
+        if not self.recent_completions:
+            t = threading.Thread(target=self.async_completions, args=(view,prefix,locations))
+            t.start()
+            print("No completions right now; trying async")
+            return ([], 0)
+        else:
+            completions = self.recent_completions
+            self.recent_completions = None
+            print("offering completions",completions)
+            return (completions, 0)
 
     # def on_modified(self, view):
     #     if not self.enable(view): return False
