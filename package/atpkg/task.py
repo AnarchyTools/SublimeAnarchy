@@ -19,7 +19,7 @@ class Task(object):
 		elif tool == "nop":
 			return NOPTask(data, where)
 		else:
-			raise PackageError("Unknown tool {tool}".format(tool=tool))
+			return UnknownTask(data, where)
 
 	def __init__(self, task, where):
 		if not isinstance(task, dict):
@@ -107,6 +107,11 @@ class XCTestTask(Task):
 
 
 class NOPTask(Task):
+
+	def __init__(self, task, where):
+		super().__init__(task, where)
+
+class UnknownTask(Task):
 
 	def __init__(self, task, where):
 		super().__init__(task, where)
