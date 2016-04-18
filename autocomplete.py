@@ -16,6 +16,7 @@ class Autocomplete(sublime_plugin.EventListener):
 
     def __init__(self):
         self.recent_completions = []
+        self.stack_overflow = False
 
     def enable(self, view):
         global settings
@@ -43,6 +44,7 @@ class Autocomplete(sublime_plugin.EventListener):
             sk_completions.append((name, stPlaceholder))
         self.recent_completions = sk_completions
         print("Completions arrived")
+        self.stack_overflow = True
         view.run_command("hide_auto_complete")
         view.run_command("auto_complete", {
             'disable_auto_insert': True,
@@ -50,12 +52,15 @@ class Autocomplete(sublime_plugin.EventListener):
             'next_completion_if_showing': False,
             'auto_complete_commit_on_tab': True,
         })
+        self.stack_overflow = False
 
 
     def on_query_completions(self, view, prefix, locations):
-        if not self.enable(view): return []
-        
+        if not self.enable(view): return ([], 0)
+
         if not self.recent_completions:
+            if self.stack_overflow:
+                return ([], 0)
             t = threading.Thread(target=self.async_completions, args=(view,prefix,locations))
             t.start()
             print("No completions right now; trying async")
