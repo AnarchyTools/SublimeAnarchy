@@ -99,7 +99,7 @@ contexts:
         2: constant.other
 
     # function definition
-    - match: \b(class)?\s(func)\s+([^\s\(]*)
+    - match: \b(class\s)?(func)\s+([^\s\(]*)
       captures:
         1: keyword
         2: keyword
