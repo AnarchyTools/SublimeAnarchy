@@ -315,6 +315,8 @@ contexts:
     #     1: support.class
     #     2: punctuation
     #   push: typeParameters
+    - match: \b(inout\s+)\b
+      scope: keyword
     - match: '\b({{class_path}})*'
       scope: support.class
 
