@@ -99,10 +99,11 @@ contexts:
         2: constant.other
 
     # function definition
-    - match: \b(func)\s+([^\s\(]*)
+    - match: \b(class)?\s(func)\s+([^\s\(]*)
       captures:
         1: keyword
-        2: entity.name.function
+        2: keyword
+        3: entity.name.function
       push: funcDefinition
     - match: \b(subscript)
       scope: support.function
@@ -112,7 +113,7 @@ contexts:
         1: support.function
         2: keyword.operator
       push: funcDefinition
-    - match: \s(init)
+    - match: \s(init|deinit)\b
       scope: support.function
       push: funcDefinition
 
@@ -195,13 +196,17 @@ contexts:
         1: punctuation
         2: variable
 
+    # hex numbers
+    - match: \b(0x[0-9a-fA-F]+)
+      scope: constant.numeric
+
     # negative numbers
-    - match: (-[0-9])
+    - match: \b(-[0-9]+)
       scope: constant.numeric
       push: number
 
     # positive numbers
-    - match: ([0-9])
+    - match: \b([0-9]+)
       scope: constant.numeric
       push: number
 
