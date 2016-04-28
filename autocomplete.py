@@ -4,6 +4,7 @@ from .package.sk2p import SK2PAPI
 from .package import stTextProcessing
 from .package import atpkgTools
 import threading
+import os.path
 
 def plugin_loaded():
     global settings
@@ -29,9 +30,10 @@ class Autocomplete(sublime_plugin.EventListener):
     def async_completions(self, view, prefix, locations):
         text = view.substr(sublime.Region(0, view.size()))
         # look up atpkg if available
+        atpkg = atpkgTools.findAtpkg(view.file_name())
         otherSourceFiles = atpkgTools.otherSourceFilesAbs(view.file_name())
-
-        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles)
+        atpkgBase = os.path.dirname(atpkg)
+        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles, extraArgs = ["-I", atpkgBase+"/.atllbuild/products/"])
         sk_completions = []
         for o in completions["key.results"]:
             stPlaceholder = stTextProcessing.fromXcodePlaceholder(o["key.sourcetext"])
