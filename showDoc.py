@@ -1,5 +1,6 @@
 import sublime_plugin
 import sublime
+import os.path
 
 from .package.sk2p import SK2PAPI
 from .package import stTextProcessing
@@ -19,7 +20,12 @@ class ShowdocCommand(sublime_plugin.TextCommand):
         text = view.substr(sublime.Region(0, view.size()))
         sel = view.sel()
         region1 = sel[0]
-        docInfo = api.documentationForCursorPosition(text, region1.begin())
+        # look up atpkg if available
+        atpkg = atpkgTools.findAtpkg(view.file_name())
+        otherSourceFiles = atpkgTools.otherSourceFilesAbs(view.file_name())
+        atpkgBase = os.path.dirname(atpkg)
+
+        docInfo = api.documentationForCursorPosition(text, region1.begin(), otherSourceFiles = otherSourceFiles, extraArgs = ["-I", atpkgBase+"/.atllbuild/products/"])
         if not docInfo: 
             sublime.status_message("No documentation available for cursor position.")
             return
