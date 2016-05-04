@@ -32,8 +32,12 @@ class Autocomplete(sublime_plugin.EventListener):
         # look up atpkg if available
         atpkg = atpkgTools.findAtpkg(view.file_name())
         otherSourceFiles = atpkgTools.otherSourceFilesAbs(view.file_name())
-        atpkgBase = os.path.dirname(atpkg)
-        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles, extraArgs = ["-I", atpkgBase+"/.atllbuild/products/"])
+        if atpkg:
+            atpkgBase = os.path.dirname(atpkg)
+            extraArgs = ["-I", atpkgBase+"/.atllbuild/products/"]
+        else:
+            extraArgs = []
+        completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles, extraArgs = extraArgs)
         sk_completions = []
         for o in completions["key.results"]:
             stPlaceholder = stTextProcessing.fromXcodePlaceholder(o["key.sourcetext"])
