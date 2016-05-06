@@ -236,6 +236,10 @@ contexts:
     - match: \b(true|false|nil)\b
       scope: constant.language
 
+    # dynamic constants
+    - match: '#(line|file|function|column)\b'
+      scope: constant.language
+
   # strings
   strings:
     - match: '"'
@@ -257,7 +261,7 @@ contexts:
       scope: punctuation.embedded
       set: string
 
-  # numbers 
+  # numbers
   number:
     - match: ([0-9]*)(\.[0-9]+)?([eE][-]?[0-9]*(\.[0-9]+)?)
       scope: constant.numeric
@@ -278,7 +282,7 @@ contexts:
       scope: keyword
     - match: \s(->)\s*
       scope: keyword
-      push: typeDefinition 
+      push: typeDefinition
     - match: (\{|\n)
       pop: true
 
