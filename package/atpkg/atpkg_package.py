@@ -61,7 +61,7 @@ class Package(object):
 			for (name, data) in value:
 				self.overlays[name] = Overlay(data)
 		else:
-			raise PackageError("Unknown item '{name}'".format(name=key))
+			print("Skipping unknown key {name}".format(name=key))
 
 	def task_for_file(self, filename):
 		sourcePath = os.path.relpath(filename, start=os.path.dirname(self.root_path))

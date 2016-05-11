@@ -1,5 +1,6 @@
 (package
  :name "dontcare"
+ :version "1.2"
     :tasks {
         :default {
             :tool "atllbuild"
