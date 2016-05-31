@@ -22,7 +22,28 @@ contexts:
     - match: ([^:]+):([0-9]+):([0-9]+):\s(error|warning):\s(.*)
       captures:
         1: entity.name.class filename
-        2: constant.numeric line 
+        2: constant.numeric line
         3: constant.numeric column
         4: keyword
         5: string
+
+    - match: (Test Case).*(started)
+      scope: comment
+
+    - match: (Test Case).*(passed).*
+      scope: comment
+
+    - match: (Test Case).*(failed).*
+      scope: keyword
+
+    - match: (Test Suite).*(passed).*
+      scope: entity.name.class
+
+    - match: (Test Suite).*(failed).*
+      scope: keyword
+
+    - match: (Executed [0-9]* test[s]?, with [1-9][0-9]* failure[s]? .*)
+      scope: keyword
+
+    - match: (Executed [0-9]* test[s]?, with 0 failures.*)
+      scope: entity.name.class
