@@ -37,6 +37,11 @@ class Autocomplete(sublime_plugin.EventListener):
             extraArgs = ["-I", atpkgBase+"/.atllbuild/products/"]
         else:
             extraArgs = []
+        
+        #add extra args to pick up modulemaps, etc.
+        task = atpkgTools.taskForSourceFile(view.file_name())
+        extraArgs += atpkgTools.absPathArgParser(task.compile_options, task)
+
         completions = api.complete(text, locations[0], otherSourceFiles=otherSourceFiles, extraArgs = extraArgs)
         sk_completions = []
         for o in completions["key.results"]:

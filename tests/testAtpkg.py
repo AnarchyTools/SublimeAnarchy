@@ -50,6 +50,15 @@ class TestParsing(unittest.TestCase):
         self.assertIn('src/b.swift', sources)
         self.assertIn('extra/foo.swift', sources)
 
+    def test_argparser(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        import package.atpkg.atpkg_package
+        buildAtpkgPath = os.path.join(loc, "fixtures/sampleatpkg/build.atpkg")
+
+        p = package.atpkg.atpkg_package.Package.fromFile(buildAtpkgPath)
+        task = p.__dict__["tasks"]["default"]
+        result =tools.absPathArgParser(["-I","whatever/foo"],task)
+        self.assertTrue(result[1].endswith("SublimeAnarchy/tests/fixtures/sampleatpkg/whatever/foo"))
 
 class TestLookups(unittest.TestCase):
     def test_tasklookup(self):

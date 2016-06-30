@@ -18,6 +18,19 @@ def taskForSourceFile(sourcePath):
     if not atpkg: return None
     return Package.fromFile(atpkg).task_for_file(sourcePath)
 
+def absPathArgParser(arr, task):
+    """Looks at compile args and tries to replace paths with absolute ones"""
+    fixedArr = []
+    fix = False
+    for i in arr:
+        if fix:
+            fix = False
+            i = os.path.abspath(os.path.join(os.path.dirname(task.root_path), i))
+        if i == "-I":
+            fix = True
+        fixedArr += [i]
+    return fixedArr
+
 def otherSourceFilesAbs(sourceFile):
     """Finds the other source files (absolute paths) for the given path, based on looking up the atpkg build file"""
     task = taskForSourceFile(sourceFile)
